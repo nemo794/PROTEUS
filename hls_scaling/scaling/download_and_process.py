@@ -95,7 +95,8 @@ def download_and_process_granules(job_dir, query_results_dict, args):
                         list_of_granule_dirs, \
                         all_lists_of_urls, \
                         repeat(args)))
-    print(result)
+    if not all(result):
+        warnings.warn("Some of the granules were not successfully processed in PROTEUS.")
 
 
 def create_dir_structure(job_dir=".", list_of_subdirs=[]):

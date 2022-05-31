@@ -16,8 +16,9 @@ Installation Instructions:
 
 1) Install PROTEUS. Follow the instructions on PROTEUS' README, and make sure the unit tests pass. Do not use the Docker version.
 2) Install pystac-client.  ```conda install -c conda-forge pystac-client```
-3) cd into the hls_scaling directory.
-4) Run hls_scaling_script.py using the Command Line.
+3) Setup a .netrc file (directions below)
+4) cd into the hls_scaling directory.
+5) Run hls_scaling_script.py using the Command Line.
     Example commands are given below. Use -h or --help for the available inputs.
 
 
@@ -35,6 +36,13 @@ then you can "rerun" the identical Study Area search by providing three argument
     python hls_scaling_script.py --root . --name StudyAreaTest --rerun
 
 
+Setting up a .netrc file
+Credit: HLS_SuPER_Script
+Setting up a netrc File
+Netrc files contain remote username/passwords that can only be accessed by the user of that OS (stored in home directory). Here we use a netrc file to store NASA Earthdata Login credentials. If a netrc file is not found when the script is executed, you will be prompted for your NASA Earthdata Login username and password by the script, and a netrc file will be created in your home directory. If you prefer to manually create your own netrc file, download the .netrc file template, add your credentials, and save to your home directory. A NASA Earthdata Login Account is required to download HLS data.
+
+Link to .netrc template: https://git.earthdata.nasa.gov/projects/LPDUR/repos/daac_data_download_python/browse/.netrc
+Link to setting up a NASA Earthdata Login Account: https://urs.earthdata.nasa.gov/
 '''
 '''
 Timing tests

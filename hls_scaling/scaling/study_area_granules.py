@@ -147,6 +147,4 @@ class StudyAreaGranules(object):
     def save_query_results_to_file(self, job_dir):
         with open(os.path.join(job_dir,"query_results.pickle"), "wb") as f:
             pickle.dump(self.granules_to_download, f)
-            # json.dump(self.granules_to_download, f)
-
 
