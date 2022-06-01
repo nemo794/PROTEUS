@@ -1,49 +1,8 @@
 #!/usr/bin/env python3
 
-# See scaling/args_setup.py for possible command line options. -h for help.
-
 # Based on code by Matt Bonnema
 # See also: https://nasa-openscapes.github.io/2021-Cloud-Hackathon/tutorials/02_Data_Discovery_CMR-STAC_API.html
 
-# Outputs will populate into this default directory structure:
-#       root_dir > ProjectStudyArea > Date > TileID > Sensor > [...]
-
-
-'''
-Quick Guide until the README is ready!
-
-Installation Instructions:
-
-1) Install PROTEUS. Follow the instructions on PROTEUS' README, and make sure the unit tests pass. Do not use the Docker version.
-2) Install pystac-client.  ```conda install -c conda-forge pystac-client```
-3) Setup a .netrc file (directions below)
-4) cd into the hls_scaling directory.
-5) Run hls_scaling_script.py using the Command Line.
-    Example commands are given below. Use -h or --help for the available inputs.
-
-
-Sample Runs from Command Line:
-This uses all filters, which narrows the query results to 6 granules:
-
-    python hls_scaling_script.py --root . --name StudyAreaTest --bbox '-120 43 -118 48' --date_range '2021-08-13/2021-08' --months 'Jun,Jul,Aug' --cloud_cover_max 30 --spatial_coverage 40 --same_day 
-
-If you Ctrl-C and kill the scaling script mid-way through downloading, etc.
-then you can "rerun" the identical Study Area search by providing three arguments:
-1) the root directory
-2) the name of the Study Area Project's directory in the root folder, which should contain some files from the first time it was run.
-3) the "--rerun" flag
-
-    python hls_scaling_script.py --root . --name StudyAreaTest --rerun
-
-
-Setting up a .netrc file
-Credit: HLS_SuPER_Script
-Setting up a netrc File
-Netrc files contain remote username/passwords that can only be accessed by the user of that OS (stored in home directory). Here we use a netrc file to store NASA Earthdata Login credentials. If a netrc file is not found when the script is executed, you will be prompted for your NASA Earthdata Login username and password by the script, and a netrc file will be created in your home directory. If you prefer to manually create your own netrc file, download the .netrc file template, add your credentials, and save to your home directory. A NASA Earthdata Login Account is required to download HLS data.
-
-Link to .netrc template: https://git.earthdata.nasa.gov/projects/LPDUR/repos/daac_data_download_python/browse/.netrc
-Link to setting up a NASA Earthdata Login Account: https://urs.earthdata.nasa.gov/
-'''
 import os
 import json
 import pickle
@@ -60,10 +19,9 @@ from scaling import download_and_process as dap
 from scaling import args_setup
 
 ## Must-do's
-# TODO: fork repo, update README. Include instructions to install PROTEUS, pystac-client, and setup the .netrc file
 # TODO: rename "Study Area" to "query results" (or something like that)
 
-## Nice-to-haves
+## Features on-deck:
 # TODO: Have TileIDs as inputs.
 # TODO: Cleanup the "months" filter; query desired months in a loop. Should make the queries smaller/faster.
 # TODO: Metadata downloading/searching can be done via threading
