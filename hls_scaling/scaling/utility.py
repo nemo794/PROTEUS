@@ -83,7 +83,7 @@ def make_job_dir(root_dir, job_name):
     job_dir = os.path.join(root_dir, job_name)
     run_num = 1
     while os.path.isdir(job_dir):
-        job_dir = os.path.join(root_dir, "%s(%s)" % (job_name,run_num))
+        job_dir = os.path.join(root_dir, "%s%s" % (job_name,run_num))
         run_num += 1
     os.makedirs(job_dir)
     return job_dir

@@ -44,21 +44,13 @@ Netrc files contain remote username/passwords that can only be accessed by the u
 Link to .netrc template: https://git.earthdata.nasa.gov/projects/LPDUR/repos/daac_data_download_python/browse/.netrc
 Link to setting up a NASA Earthdata Login Account: https://urs.earthdata.nasa.gov/
 '''
-'''
-Timing tests
-6 tiles:
-real    7m17.187s
-user    24m18.756s
-sys     0m14.616s
-
-170 tiles:
-real    18m5.665s
-user    1730m33.836s
-sys     12m27.343s
-'''
 import os
 import json
 import pickle
+import sys
+import warnings
+import time
+import copy
 
 from pystac_client import Client  # conda install -c conda-forge pystac-client
 
@@ -68,32 +60,31 @@ from scaling import download_and_process as dap
 from scaling import args_setup
 
 ## Must-do's
-# TODO: build in a delay-and-retry if the STAC query is rejected.
 # TODO: fork repo, update README. Include instructions to install PROTEUS, pystac-client, and setup the .netrc file
-# TODO: have params.py act as a runconfig file for the scaling script.
-# TODO: redo error handling for PROTEUS processing. Maybe include "verbose" as input?
 # TODO: rename "Study Area" to "query results" (or something like that)
-# TODO: Double-check usage of "tile" vs "granule" in variable naming
-# TODO: Double-check help text for all input arguments. (particularly --rerun)
-# TODO: pretty-print to the settings.json file
 
 ## Nice-to-haves
 # TODO: Have TileIDs as inputs.
-# TODO: Cleanup the "months"; query desired months in a loop
+# TODO: Cleanup the "months" filter; query desired months in a loop. Should make the queries smaller/faster.
 # TODO: Metadata downloading/searching can be done via threading
 # TODO: Have "intersects" be an alternative to bounding_box as input
 # TODO: allow user to choose the directory structure
-# TODO: instead of hard-coding the bands, allow this to be an input
 # TODO: Modularize the xml-checking to allow for filters in addition to SPATIAL_COVERAGE
 
 
 def main(args):
 
     # Verify
-    args_setup.verify_args(args, raw_input=True)
+    args_setup.verify_input_args(args)
 
-    # Convert args to desired format
-    args_setup.prepare_args(args)
+    # If not --rerun, make a copy of the original input arguments. (It is a small dictionary.)
+    # Later, once the script has successfully completed the query and filtering,
+    # a new directory for storing outputs will be created, and this copy will be stored there.
+    if not args['rerun']:
+        unprocessed_args = copy.deepcopy(args)
+
+    # Reformat args for use by this script
+    args_setup.reformat_args(args)
 
     if not args['rerun']:
         ## Query NASA's STAC-CMR
@@ -116,7 +107,16 @@ def main(args):
             # filter=['eo:cloud_cover<=20']
             )
 
-        item_collection = search.get_all_items()
+        for attempt in range(1,4):
+            try:
+                item_collection = search.get_all_items()
+            except APIError as e:
+                if attempt < 3:
+                    warnings.warn:("Could not connect to STAC server. Will sleep for 5 secs and try again. (Attempt %d of 3)", attempt)
+                    time.sleep(5)
+                else:
+                    warnings.warn:("Could not connect to STAC server. Attempt %d of 3. Exiting program.", attempt)
+                    sys.exit()
 
         print("Number of granules in initial query of STAC (entire date_range): ", len(item_collection))
 
@@ -144,49 +144,36 @@ def main(args):
         # Make new job directory for this Study Area to hold all outputs
         job_dir = utility.make_job_dir(args['root_dir'], args['job_name'])
 
-        # Save args to settings.json file, in case of future rerun
+        # Save the original input args to settings.json file, in case of future rerun
         settings_json = os.path.join(job_dir, 'settings.json')        
         with open(settings_json, 'w') as f: 
-            json.dump(args, f)
+            f.write(json.dumps(unprocessed_args, indent=4))
 
         study_area.save_all_granule_names_to_file(job_dir)
-        print(f'List of filtered granule names saved to {job_dir}/dswx_hls_filtered_granules.txt.')
+        if args['verbose']:
+            print(f'List of filtered granule names saved to {job_dir}/dswx_hls_filtered_granules.txt.')
 
         study_area.save_all_urls_to_file(job_dir, args['l30_v2_bands'], args['s30_v2_bands'])
-        print(f'List of urls saved to {job_dir}/dswx_hls_filtered_urls.txt.')
+        if args['verbose']:
+            print(f'List of urls saved to {job_dir}/dswx_hls_filtered_urls.txt.')
 
         # Pickle the dictionary containing the final results of the query + filtering.
         # This output will be used for --rerun requests in the future
         study_area.save_query_results_to_file(job_dir)
-        print(f'copy of query results dictionary saved to {job_dir}/query_results.pickle. This will be required to use --rerun option in the future.')
+        if args['verbose']:
+            print(f'Copy of query results dictionary saved to {job_dir}/query_results.pickle. This will be required to use --rerun option in the future.')
 
+        if not args['verbose']:
+            print(f'Query results saved in {job_dir}.')
 
-    ## Download tiles
+    ## Download granules
 
     if args['do_not_download']:
         print("Download and processing were not requested. Exiting now.")
-
-        if args['rerun']:
-            print("When using --rerun, to download (and process) the query results, please edit this Study Area's existing settings.json file so that do_not_download (and do_not_process) set to False.")
-
         sys.exit()
 
-    ## Download granules and populate the job directory with the outputs
     if args['rerun']:
         job_dir = os.path.join(args['root_dir'], args['job_name'])
-
-        # Load prior settings from saved settings.json file into the args.
-        # This will replace all other args inputs.
-        settings_json = os.path.join(job_dir, 'settings.json')
-
-        with open(settings_json, 'r') as f:
-            args = json.load(f)
-
-        # Make sure 'rerun' is still set to True
-        args['rerun'] = True
-
-        # Verify args that were loaded from settings.json
-        args_setup.verify_args(args, raw_input=False)
 
         # Read in query_results.pickle
         pickle_file = os.path.join(job_dir,'query_results.pickle')
@@ -196,6 +183,7 @@ def main(args):
     else:
         query_results = study_area.granules_to_download
 
+    ## Download granules and populate the job directory with the outputs
     dap.download_and_process_granules( \
                                 job_dir=job_dir, \
                                 query_results_dict=query_results, \

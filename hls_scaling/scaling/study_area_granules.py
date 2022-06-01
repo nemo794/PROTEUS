@@ -51,7 +51,7 @@ class StudyAreaGranules(object):
         self.exit_if_no_downloads()
 
 
-    # Filter for tiles+dates with coverage by S30 and L30
+    # Filter for granules+dates with coverage by both S30 and L30
     def filter_S30_L30_sameDay(self):
         """
         Assumption: Sentinel and Landsat have 5+ day return time,

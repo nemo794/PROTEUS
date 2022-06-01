@@ -1,0 +1,21 @@
+{
+    "scaling_runconfig": "",
+    "root_dir": ".",
+    "job_name": "StudyAreaTest",
+    "bounding_box": "-120 43 -118 48",
+    "date_range": "2021-08-13/2021-08",
+    "months": "Jun,Jul,Aug",
+    "cloud_cover_max": 30,
+    "spatial_coverage_min": 40,
+    "same_day": true,
+    "do_not_download": false,
+    "do_not_process": false,
+    "rerun": false,
+    "runconfig_template": "./scaling/proteus_runconfig_template.txt",
+    "dem_file": "/home/shiroma/dat/nisar-dem-copernicus/EPSG4326.vrt",
+    "l30_v2_bands": "B02,B03,B04,B05,B06,B07,Fmask",
+    "s30_v2_bands": "B02,B03,B04,B8A,B11,B12,Fmask",
+    "STAC_URL_LPCLOUD": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/",
+    "COLLECTIONS": "HLSL30.v2.0,HLSS30.v2.0",
+    "verbose": false
+}

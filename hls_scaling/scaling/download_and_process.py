@@ -62,12 +62,6 @@ def download_and_process_granules(job_dir, query_results_dict, args):
     # Get list of granule IDs.
     list_of_granule_ids = list(query_results_dict.keys())
 
-    # For each granule, get list of URLs to download
-    # Get the list of urls to download for this Granule
-    all_lists_of_urls = \
-        [utility.get_list_of_urls(query_results_dict, granule_id, args['l30_v2_bands'], args['s30_v2_bands']) \
-            for granule_id in query_results_dict.keys()]
-
     # Create directory structure for all granules.
     # Save this list to a txt file.
     # Note: Do this before the pool operation to avoid race conditions
@@ -85,21 +79,40 @@ def download_and_process_granules(job_dir, query_results_dict, args):
         # remove final "\n" newline character
         utility.remove_last_char(f)
 
+    # For each granule, get list of URLs to download
+    # Get the list of urls to download for this Granule
+    all_lists_of_urls = \
+        [utility.get_list_of_urls(query_results_dict, granule_id, args['l30_v2_bands'], args['s30_v2_bands']) \
+            for granule_id in query_results_dict.keys()]
+
     # Limit the maximum number of simultaneous downloads and processes to
     # the number of available CPUs.
     pool = ThreadPool(os.cpu_count())
 
     # Downloaded and process each granule independently
-    result = pool.starmap(download_and_process_granule, \
+    if args['do_not_process']:
+        print("Beginning downloading of granules. Per the --do_not_process input, these will not be processed in PROTEUS.")
+    else:
+        print("Beginning downloading and processing of granules in PROTEUS.")
+
+    results = pool.starmap(download_and_process_granule, \
                     zip(list_of_granule_ids, \
                         list_of_granule_dirs, \
                         all_lists_of_urls, \
                         repeat(args)))
-    if not all(result):
-        warnings.warn("Some of the granules were not successfully processed in PROTEUS.")
+
+    if args['do_not_process']:
+        print(f"Downloading of granules complete. Location: {job_dir}")
+        if not all(results):
+            warnings.warn("Some of the granules were not successfully downloaded.")
+
+    else:
+        print(f"Downloading and processing of granules complete. Location: {job_dir}")
+        if not all(results):
+            warnings.warn("Some of the granules were not successfully downloaded and/or processed.")
 
 
-def create_dir_structure(job_dir=".", list_of_subdirs=[]):
+def create_dir_structure(job_dir=".", list_of_subdirs=None):
     """
     Inputs:
     -------
@@ -142,18 +155,15 @@ def download_and_process_granule(granule_id, dir_path, list_of_urls, args):
 
     # Download granule data
     try:
-        print('Beginning Download of granule ID %s...' % granule_id)
-        download_granule_data(list_of_urls, dir_path)
-        print('Download of granule ID %s complete.' % granule_id)
+        download_granule_data(granule_id, list_of_urls, dir_path, args)
+
     except Exception as e:
         print(e)
-        print("ERROR: granule %s could not be downloaded and will not be processed." % granule_id)
+        warnings.warn("An Exception occurred. Granule %s could not be downloaded and will not be processed." % granule_id)
         return False
 
     # Process granule through DSWx-HLS (PROTEUS)
-    if args['do_not_process']:
-        print("Granule %s finished downloading on PID %s" % (granule_id, os.getpid()))
-    else:
+    if not args['do_not_process']:
         # Create runconfig file
         runconfig_path = create_runconfig_yaml(dir_path, \
                                                 args['runconfig_template'], \
@@ -167,20 +177,18 @@ def download_and_process_granule(granule_id, dir_path, list_of_urls, args):
             os.remove(os.path.join(os.path.join(dir_path, 'scratch_dir'), f))
 
         # Process through DSWx-HLS (PROTEUS)
-        print('Beginning Processing of granule ID %s in PROTEUS...' % granule_id)
-        process_granule(runconfig_path, granule_id)
-        print('Processing of granule ID %s in PROTEUS complete.' % granule_id)
+        (proteus_stdout, proteus_stderr) = process_granule(runconfig_path, granule_id, args)
 
-        # try:
-        #     process_granule(runconfig_path, granule_id)
-        # except Exception as e:
-        #     print(e)
-        #     return False
-    
+        # TODO: If there are errors from PROTEUS, normally this function should return False.
+        # However, there are several errors occuring but the file outputs still look "ok",
+        # so ignore those errors for now. They are being reported in process_granule().
+
     return True
 
 
-def download_granule_data(list_of_urls, dir_path):
+def download_granule_data(granule_id, list_of_urls, dir_path, args):
+    if args['verbose']:
+        print('Beginning Download of granule ID %s...' % granule_id)
 
     for url in list_of_urls:
         # NOTE: os.path.basename() does not handle edge cases for urls.
@@ -199,35 +207,44 @@ def download_granule_data(list_of_urls, dir_path):
         
         # else: File already exists and is valid. Do not re-download.
 
+    if args['verbose']:
+        print('Download of granule ID %s complete.' % granule_id)
 
-def process_granule(runconfig_path, granule_id):
+
+def process_granule(runconfig_path, granule_id, args):
+
+    if args['verbose']:
+        print('Beginning processing of granule ID %s...' % granule_id)
 
     # Process through PROTEUS
     # Note that PROTEUS must be alread installed on the system to run.
     # See: https://github.com/opera-adt/PROTEUS for instructions.
-    print("Beginning processing of granule id: ", granule_id)
     p = subprocess.run(['dswx_hls.py', runconfig_path], \
                         capture_output=True, text=True
                         )
                         
     # If process resulted in an error, then do something
     if p.stderr:
-        # TODO - Decide how to handle incomplete processing. Should we rerun PROTEUS?
-        # Display output from PROTEUS to console. This is messy with multiple processes running.
-        # print(p.stdout)
-        # print(p.stderr)
-        warnings.warn("Errors were generated from PROTEUS while processing granule id %s." % granule_id)
-        return False
-    else:
-        print("Successfully processed granule id %s in PROTEUS." % granule_id)
-        # Display output from PROTEUS to console. This is messy with multiple processes running.
-        # print(p.stdout)
-        return True
+        warnings.warn("Errors were generated from PROTEUS while processing granule ID %s." % granule_id)
+        if args['verbose']:
+            print(p.stderr)
+
+    elif args['verbose']:
+        print('Processing in PROTEUS of granule ID %s complete.' % granule_id)
+
+    return (p.stdout, p.stderr)
+
 
 def create_runconfig_yaml(granule_dir_path, runconfig_template, dem_file):
     # Read in template
     with open(runconfig_template, 'r') as template:
         tmpl = template.read()
+
+    # Make sure the template file contains the required "variables"
+    assert tmpl.count('$$INPUT_DIR$$') == 1, f"{runconfig_template} must contain $$INPUT_DIR$$ one time."
+    assert tmpl.count('$$DEM_FILE$$') == 1, f"{runconfig_template} must contain $$DEM_FILE$$ one time."
+    assert tmpl.count('$$SCRATCH_DIR$$') == 1, f"{runconfig_template} must contain $$SCRATCH_DIR$$ one time."
+    assert tmpl.count('$$OUTPUT_DIR$$') == 1, f"{runconfig_template} must contain $$OUTPUT_DIR$$ one time."
 
     # Replace the target strings
     tmpl = tmpl.replace('$$INPUT_DIR$$', os.path.join(granule_dir_path,'input_dir'))
