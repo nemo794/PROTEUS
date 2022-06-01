@@ -76,7 +76,6 @@ The DSWx-HLS Scaling Script queries NASA's STAC-CMR database for HLS 2.0 granule
 
 Installation Instructions:
 
-/*: 
 1. Install PROTEUS by following the directions above. Make sure the tests pass.
 2. Install pystac-client:
 ```conda install -c conda-forge pystac-client```
@@ -86,7 +85,7 @@ Installation Instructions:
 - To create your .netrc file, download the [.netrc file template](https://git.earthdata.nasa.gov/projects/LPDUR/repos/daac_data_download_python/browse/.netrc), update with your Earthdata login credentials, and save to your home directory.
 4. cd into the hls_scaling directory. ```cd hls_scaling```
 5. Use the hls_scaling_script.py. A tutorial with examples can be found below.
-*/
+
 
 ### Usage
 
@@ -118,7 +117,7 @@ Similar to before, it has begun storing its results in a new directory: ./StudyA
 
 To resume this process, use the ```--rerun``` command, making sure to specify the correct directory name:
 
-```python hls_scaling_script.py –root_dir . --job_name StudyAreaTest2 --rerun
+```python hls_scaling_script.py –root_dir . --job_name StudyAreaTest2 --rerun```
 
 Rerun will not re-download HLS granule files that have already been downloaded, but it will download any files remaining to be downloaded and then process those through PROTEUS. Note that Rerun requires that the main directory contain the files ```settings.json``` and ```study_results.pickle```, which were generated during the initial request.
 
