@@ -101,25 +101,25 @@ First, use --help to see the available API commands available. The help text con
 
 Next, try a basic request via the Command Line. A request requires (at minimum) --root_dir, --job_name, --bbox, and --date_range. This example should produce 170 granules; once the console output says that downloading and processing have begun, wait a couple of seconds and then Ctrl-C to interupt the execution.
 
-```python hls_scaling_script.py -–root_dir . --job_name StudyAreaTest --bbox '-120 43 -118 48' --date_range '2021-08-13/2021-08'```
+```python hls_scaling_script.py --root_dir . --job_name StudyAreaTest --bbox '-120 43 -118 48' --date_range '2021-08-13/2021-08'```
 
 Interrupting the process prevented the complete download and processing of the 170 tiles. However, because we waited until the downloading had begun, the search results from the query were still saved to ./StudyTestArea. These auto-generated files give the user insight into the query results, and will be needed to rerun this query in the future. , as well as a complete directory structure and whatever files were downloaded before the process was terminated. Of interest, the file ```settings.json``` contains the settings that were used to run this request, so that a user has a record of the study area, filters, and parameters used to get these query results.
 
 Next, apply filters to that same search to narrow the STAC query results to 6 granules (see --help for options and format):
 
-```python hls_scaling_script.py -–root_dir . --job_name StudyAreaTest --bbox '-120 43 -118 48' --date_range '2021-08-13/2021-08' --months 'Jun,Jul,Aug' --cloud_cover_max 30 --spatial_coverage 40 --same_day```
+```python hls_scaling_script.py --root_dir . --job_name StudyAreaTest --bbox '-120 43 -118 48' --date_range '2021-08-13/2021-08' --months 'Jun,Jul,Aug' --cloud_cover_max 30 --spatial_coverage 40 --same_day```
 
 With an institution-based internet connection and multicore processor (8+ core), this can complete in 7-8 minutes. Slower connections and CPUs will take longer. Also notice that because this filtered request had the same root_dir and job_name as our first basic query, the script automatically appends a number to the end of job_name, and the results populated into a new directory: ./StudyAreaTest1. (This is so the first directory is not accidentally overwritten.) Now, take a moment to explore the outputs in the nested folders of ./StudyAreaTest1 and see where the results ended up.
 
 Now, let's try that same command again. This time, let it download for ~20 seconds, then Ctrl-C the process to interrupt its execution.
 
-```python hls_scaling_script.py -–root_dir . --job_name StudyAreaTest --bbox '-120 43 -118 48' --date_range '2021-08-13/2021-08' --months 'Jun,Jul,Aug' --cloud_cover_max 30 --spatial_coverage 40 --same_day```
+```python hls_scaling_script.py --root_dir . --job_name StudyAreaTest --bbox '-120 43 -118 48' --date_range '2021-08-13/2021-08' --months 'Jun,Jul,Aug' --cloud_cover_max 30 --spatial_coverage 40 --same_day```
 
 Similar to before, it has begun storing its results in a new directory: ./StudyAreaTest2. Nested in this directory are `input_dir` directories where the HLS granule files are downloaded; some of the HLS granule files should be downloaded into each input_dir directory, but not all 7 needed for execution of PROTEUS.
 
 To resume this process, use the ```--rerun``` command, making sure to specify the correct directory name:
 
-```python hls_scaling_script.py –root_dir . --job_name StudyAreaTest2 --rerun```
+```python hls_scaling_script.py --root_dir . --job_name StudyAreaTest2 --rerun```
 
 Rerun will not re-download HLS granule files that have already been downloaded, but it will download any files remaining to be downloaded and then process those through PROTEUS. Note that Rerun requires that the main directory contain the files ```settings.json``` and ```study_results.pickle```, which were generated during the initial request.
 
