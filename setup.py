@@ -20,7 +20,7 @@ setup(
     package_dir={'proteus': 'src/proteus'},
     packages=['proteus',
               'proteus.extern',
-              'proteus.dswx_hls_scaling'],
+              'proteus.scaling'],
     include_package_data=True,
     package_data=package_data_dict,
     classifiers=['Programming Language :: Python',],

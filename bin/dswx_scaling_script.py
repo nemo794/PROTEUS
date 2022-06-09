@@ -13,10 +13,10 @@ import copy
 
 from pystac_client import Client  # conda install -c conda-forge pystac-client
 
-from scaling import utility
-from scaling import study_area_granules
-from scaling import download_and_process as dap
-from scaling import args_setup
+from proteus.scaling import utility
+from proteus.scaling import study_area_granules
+from proteus.scaling import download_and_process as dap
+from proteus.scaling import args_setup
 
 ## Must-do's
 # TODO: rename "Study Area" to "query results" (or something like that)
@@ -70,10 +70,10 @@ def main(args):
                 item_collection = search.get_all_items()
             except APIError as e:
                 if attempt < 3:
-                    warnings.warn:("Could not connect to STAC server. Will sleep for 5 secs and try again. (Attempt %d of 3)", attempt)
+                    warnings.warn:("(Attempt %d of 3) Could not connect to STAC server. Will sleep for 5 secs and try again.", attempt)
                     time.sleep(5)
                 else:
-                    warnings.warn:("Could not connect to STAC server. Attempt %d of 3. Exiting program.", attempt)
+                    warnings.warn:("(Attempt %d of 3.) Could not connect to STAC server.  Exiting program.", attempt)
                     sys.exit()
 
         print("Number of granules in initial query of STAC (entire date_range): ", len(item_collection))
