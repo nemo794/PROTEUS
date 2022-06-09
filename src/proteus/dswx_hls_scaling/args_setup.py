@@ -178,7 +178,7 @@ def parse_args():
     parser.add_argument('--runconfig_template',
                         dest='runconfig_template',
                         type=str,
-                        default='./scaling/proteus_runconfig_template.txt',
+                        default='./src/proteus/defaults/dswx_hls.yaml',
                         help=msg
                         )
 
@@ -193,6 +193,34 @@ def parse_args():
                         dest='dem_file',
                         type=str,
                         default='/home/shiroma/dat/nisar-dem-copernicus/EPSG4326.vrt',
+                        help=msg
+                        )
+
+    msg = '''
+    World-wide landcover file. This landcover file is used for all tiles processed.
+    Warning: in the future, if a world-wide landcover file is no longer available
+    and an individual landcover file must be fetched for each tile, then the
+    workflow for populating each granule's runconfig file will need to be updated.
+    See: download_and_process.py > create_runconfig_yaml()
+    '''
+    parser.add_argument('--landcover_file',
+                        dest='landcover_file',
+                        type=str,
+                        default='/home/shiroma/dat/copernicus_landcover/PROBAV_LC100_global_v3.0.1_2019-nrt_Discrete-Classification-map_EPSG-4326.tif',
+                        help=msg
+                        )
+
+    msg = '''
+    World-wide worldcover file. This worldcover file is used for all tiles processed.
+    Warning: in the future, if a world-wide worldcover file is no longer available
+    and an individual worldcover file must be fetched for each tile, then the
+    workflow for populating each granule's runconfig file will need to be updated.
+    See: download_and_process.py > create_runconfig_yaml()
+    '''
+    parser.add_argument('--worldcover_file',
+                        dest='worldcover_file',
+                        type=str,
+                        default='/mnt/aurora-r0/jungkyo/data/landcover.vrt',
                         help=msg
                         )
 
@@ -312,25 +340,35 @@ def verify_input_args(args):
 
     '''
     assert isinstance(args['rerun'], bool), "rerun input must be Boolean."
+    assert isinstance(args['do_not_download'], bool), "do_not_download input must be Boolean."
+    assert isinstance(args['do_not_process'], bool), "do_not_process input must be Boolean."
+    assert os.path.isdir(args['root_dir']), f"{args['root_dir']} is not a valid directory."
+    assert args['job_name'], f"{args['job_name']} must be provided and not an empty string."
+    assert os.path.exists(args['dem_file']), f"--dem_file was input as (or defaulted to) {args['dem_file']}, but that file does not exist."
+    assert os.path.exists(args['landcover_file']), f"--landcover_file was input as (or defaulted to) {args['landcover_file']}, but that file does not exist."
+    assert os.path.exists(args['worldcover_file']), f"--worldcover_file was input as (or defaulted to) {args['worldcover_file']}, but that file does not exist."
 
-    # For --rerun, we only need to check that arguments that will be used.
-    # e.g. we do not need to check the filter arguments, etc. because those
-    # will not be used.
+    assert set(args['l30_v2_bands'].split(',')).issubset(['B09','VZA','SAA','B10','B03','B05','Fmask','B07','B02','SZA','B04','B06','B01','VAA','B11','browse','metadata']), \
+        "months input must be a subset of 'B09,VZA,SAA,B10,B03,B05,Fmask,B07,B02,SZA,B04,B06,B01,VAA,B11,browse,metadata'."
+    if not set(['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'Fmask']).issubset(args['l30_v2_bands'].split(',')):
+        warnings.warn("The requested l30_v2_bands are missing bands needed to run PROTEUS for L30 granules.")
+
+    assert set(args['s30_v2_bands'].split(',')).issubset(['B06','SZA','B07','B10','B09','B05','B08','B02','VAA','B01','SAA','B8A','B04','B12','Fmask','B11','B03','VZA','browse','metadata']), \
+        "months input must be a subset of 'B06,SZA,B07,B10,B09,B05,B08,B02,VAA,B01,SAA,B8A,B04,B12,Fmask,B11,B03,VZA,browse,metadata''."
+    if not set(['B02', 'B03', 'B04', 'B8A', 'B11', 'B12', 'Fmask']).issubset(args['s30_v2_bands'].split(',')):
+        warnings.warn("The requested s30_v2_bands are missing bands needed to run PROTEUS for S30 granules.")
+
+    # For --rerun, check that the required files exist.
     if args['rerun']:
         study_area_dir = os.path.join(args['root_dir'], args['job_name'])
-        assert os.path.isdir(study_area_dir), "For --rerun option, directory %s must exist." % study_area_dir
+        assert os.path.isdir(study_area_dir), "For --rerun option, directory %s must already exist." % study_area_dir
         assert os.path.exists(os.path.join(study_area_dir, 'settings.json')), \
             "%s is missing and required for --rerun. If error persists, please remove --rerun option to begin scaling script from scratch." % os.path.join(study_area_dir, 'settings.json')
         assert os.path.exists(os.path.join(study_area_dir, 'query_results.pickle')), \
             "%s is missing and required for --rerun. If error persists, please remove --rerun option to begin scaling script from scratch." % os.path.join(study_area_dir, 'query_results.pickle')
 
-        assert isinstance(args['do_not_download'], bool), "do_not_download input must be Boolean."
-        assert isinstance(args['do_not_process'], bool), "do_not_process input must be Boolean."
-
-    # If a new Study Area job is requested, check all arguments
+    # A new Study Area job is requested; check the inputs used for filtering
     else:
-        assert os.path.isdir(args['root_dir']), f"{args['root_dir']} is not a valid directory."
-        assert args['job_name'], f"{args['job_name']} must be provided and not an empty string."
         assert args['date_range'], "A date_range must be provided and not an empty string."
         assert args['bounding_box'], "A bounding_box must be provided."
         assert 0 <= args['cloud_cover_max'] and args['cloud_cover_max'] <= 100, \
@@ -338,21 +376,9 @@ def verify_input_args(args):
         assert 0 <= args['spatial_coverage_min'] and args['spatial_coverage_min'] <= 100, \
             "spatial_coverage_min input must be between 0 and 100, inclusive."
         assert isinstance(args['same_day'], bool), "same_day input must be Boolean."
-        assert isinstance(args['do_not_download'], bool), "do_not_download input must be Boolean."
-        assert isinstance(args['do_not_process'], bool), "do_not_process input must be Boolean."
 
         assert set(args['months'].split(',')).issubset(["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]), \
             "months input must be a subset of 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec'."
-
-        assert set(args['l30_v2_bands'].split(',')).issubset(['B09','VZA','SAA','B10','B03','B05','Fmask','B07','B02','SZA','B04','B06','B01','VAA','B11','browse','metadata']), \
-            "months input must be a subset of 'B09,VZA,SAA,B10,B03,B05,Fmask,B07,B02,SZA,B04,B06,B01,VAA,B11,browse,metadata'."
-        if not set(['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'Fmask']).issubset(args['l30_v2_bands'].split(',')):
-            warnings.warn("The requested l30_v2_bands are missing bands needed to run PROTEUS for L30 granules.")
-
-        assert set(args['s30_v2_bands'].split(',')).issubset(['B06','SZA','B07','B10','B09','B05','B08','B02','VAA','B01','SAA','B8A','B04','B12','Fmask','B11','B03','VZA','browse','metadata']), \
-            "months input must be a subset of 'B06,SZA,B07,B10,B09,B05,B08,B02,VAA,B01,SAA,B8A,B04,B12,Fmask,B11,B03,VZA,browse,metadata''."
-        if not set(['B02', 'B03', 'B04', 'B8A', 'B11', 'B12', 'Fmask']).issubset(args['s30_v2_bands'].split(',')):
-            warnings.warn("The requested s30_v2_bands are missing bands needed to run PROTEUS for S30 granules.")
 
         assert set(args['COLLECTIONS'].split(',')).issubset(['HLSL30.v2.0','HLSS30.v2.0']), \
             'Only HLSL30.v2.0 and/or HLSS30.v2.0 currently supported for --COLLECTIONS input.'

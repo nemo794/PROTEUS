@@ -4,9 +4,11 @@ import requests
 import warnings
 import subprocess
 from multiprocessing.pool import ThreadPool
+from multiprocessing import Pool
 from itertools import repeat
 
 import xml.etree.ElementTree as ET
+from ruamel.yaml import YAML
 
 from scaling import utility
 
@@ -44,10 +46,12 @@ Possible design changes:
 file, two items need refactoring:
     1) process_granule()'s call to subprocess.run would need to be
     changed to the generate_dswx_layers(...)
-    2) "mp.pool.ThreadPool" should be changed to "mp.Pool". This
-    will cause each call to download_and_process_granule() to be
-    spawned into a new process for the OS to manange. This change
-    would likely have minimal impact on overall run time, but we loose 
+    2) "from multiprocessing.pool import ThreadPool" should become
+    "from multiprocessing import Pool", and then 
+    "pool = ThreadPool(os.cpu_count()) should become "pool = Pool(os.cpu_count())"
+    This will cause each call to download_and_process_granule() to be
+    spawned into a new process for the OS to manange. Overall run time will
+    be similar (perhaps a few seconds longer), and we lose 
     the reproducibility of the runconfig.yaml.
 * By having both the downloading and processing in the same function,
 we remove latency between the time .tif files are downloaded and
@@ -165,10 +169,7 @@ def download_and_process_granule(granule_id, dir_path, list_of_urls, args):
     # Process granule through DSWx-HLS (PROTEUS)
     if not args['do_not_process']:
         # Create runconfig file
-        runconfig_path = create_runconfig_yaml(dir_path, \
-                                                args['runconfig_template'], \
-                                                args['dem_file']
-                                                )
+        runconfig_path = create_runconfig_yaml(dir_path, args)
 
         # Remove any leftover files from output_dir and scratch_dir
         for f in os.listdir(os.path.join(dir_path, 'output_dir')):
@@ -219,6 +220,8 @@ def process_granule(runconfig_path, granule_id, args):
     # Process through PROTEUS
     # Note that PROTEUS must be alread installed on the system to run.
     # See: https://github.com/opera-adt/PROTEUS for instructions.
+    # TODO SAM LOOK HERE
+    # p = subprocess.run(['dswx_hls.py', runconfig_path, '--log-file', dswx_hls_log_path], \
     p = subprocess.run(['dswx_hls.py', runconfig_path], \
                         capture_output=True, text=True
                         )
@@ -235,27 +238,34 @@ def process_granule(runconfig_path, granule_id, args):
     return (p.stdout, p.stderr)
 
 
-def create_runconfig_yaml(granule_dir_path, runconfig_template, dem_file):
-    # Read in template
-    with open(runconfig_template, 'r') as template:
-        tmpl = template.read()
+def create_runconfig_yaml(granule_dir_path, args):
 
-    # Make sure the template file contains the required "variables"
-    assert tmpl.count('$$INPUT_DIR$$') == 1, f"{runconfig_template} must contain $$INPUT_DIR$$ one time."
-    assert tmpl.count('$$DEM_FILE$$') == 1, f"{runconfig_template} must contain $$DEM_FILE$$ one time."
-    assert tmpl.count('$$SCRATCH_DIR$$') == 1, f"{runconfig_template} must contain $$SCRATCH_DIR$$ one time."
-    assert tmpl.count('$$OUTPUT_DIR$$') == 1, f"{runconfig_template} must contain $$OUTPUT_DIR$$ one time."
+    # Load the default dswx_hls.yaml template
+    yaml = YAML()
+    runconfig = yaml.load(args['runconfig_template'])
 
-    # Replace the target strings
-    tmpl = tmpl.replace('$$INPUT_DIR$$', os.path.join(granule_dir_path,'input_dir'))
-    tmpl = tmpl.replace('$$DEM_FILE$$', dem_file)
-    tmpl = tmpl.replace('$$SCRATCH_DIR$$', os.path.join(granule_dir_path,'scratch_dir'))        
-    tmpl = tmpl.replace('$$OUTPUT_DIR$$', os.path.join(granule_dir_path,'output_dir'))
+    # Update the yaml with the desired arguments
+    runconfig['runconfig']['groups']['input_file_group']['input_file_path'] = \
+                [os.path.join(granule_dir_path, 'input_dir')]
+
+    runconfig['runconfig']['groups']['dynamic_ancillary_file_group']['dem_file'] = \
+                os.path.join(args['dem_file'])
+
+    runconfig['runconfig']['groups']['dynamic_ancillary_file_group']['landcover_file'] = \
+                os.path.join(args['landcover_file'])
+
+    runconfig['runconfig']['groups']['dynamic_ancillary_file_group']['worldcover_file'] = \
+                os.path.join(args['worldcover_file'])
+
+    runconfig['runconfig']['groups']['product_path_group']['scratch_path'] = \
+                os.path.join(granule_dir_path, 'scratch_dir')
+
+    runconfig['runconfig']['groups']['product_path_group']['output_dir'] = \
+                os.path.join(granule_dir_path, 'output_dir')
 
     # save into the granule's directory
     runconfig_path = os.path.join(granule_dir_path,'dswx_hls_runconfig.yaml')
-    with open(runconfig_path, 'w') as runcofig:
-        runcofig.write(tmpl)
+    yaml.dump(runconfig, runconfig_path)
 
     return runconfig_path
 

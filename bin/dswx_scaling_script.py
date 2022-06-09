@@ -13,8 +13,8 @@ import copy
 
 from pystac_client import Client  # conda install -c conda-forge pystac-client
 
-from scaling import utility
-from scaling import study_area_granules
+from proteus.scaling import utility
+from proteus.scaling import study_area_granules
 from scaling import download_and_process as dap
 from scaling import args_setup
 

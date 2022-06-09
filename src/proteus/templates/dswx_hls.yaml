@@ -7,11 +7,11 @@ runconfig:
        
         input_file_group:
             # REQUIRED - Single HLS dataset (directory or files)
-            input_file_path: [$$INPUT_DIR$$]
+            input_file_path: [<INPUT_DIR>]
        
         dynamic_ancillary_file_group:
             # Digital elevation model
-            dem_file: $$DEM_FILE$$
+            dem_file: <DEM_FILE>
 
         primary_executable:
             product_type: DSWX_HLS      
@@ -21,7 +21,7 @@ runconfig:
             product_path: product_path
        
             # Directory where SAS can write temporary data
-            scratch_path: $$SCRATCH_DIR$$
+            scratch_path: <SCRATCH_DIR>
 
             # SAS writes DSWx-HLS products as a set of GeoTIFF layers
             # All files are saved within the output_directory following
@@ -29,7 +29,7 @@ runconfig:
             # {output_dir}/{product_id}_{layer_name}.tif
             # If the field product_id is left empty, the prefix "dswx_hls"
             # will be used instead
-            output_dir: $$OUTPUT_DIR$$
+            output_dir: <OUTPUT_DIR>
             product_id: dswx_hls
 
             save_wtr: True    # Layer 1 - WTR

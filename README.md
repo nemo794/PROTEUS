@@ -96,9 +96,11 @@ All outputs will be placed into a new directory: ```<root_dir>/<job_name>```. If
 #### Command Line Tutorial
 
 First, use --help to see the available API commands available. The help text contains a description of the input, the required format for the input, and example input(s).
+
 ```python hls_scaling_script.py --help```
 
 Next, try a basic request via the Command Line. A request requires (at minimum) --root_dir, --job_name, --bbox, and --date_range. This example should produce 170 granules; once the console output says that downloading and processing have begun, wait a couple of seconds and then Ctrl-C to interupt the execution.
+
 ```python hls_scaling_script.py -–root_dir . --job_name StudyAreaTest --bbox '-120 43 -118 48' --date_range '2021-08-13/2021-08'```
 
 Interrupting the process prevented the complete download and processing of the 170 tiles. However, because we waited until the downloading had begun, the search results from the query were still saved to ./StudyTestArea. These auto-generated files give the user insight into the query results, and will be needed to rerun this query in the future. , as well as a complete directory structure and whatever files were downloaded before the process was terminated. Of interest, the file ```settings.json``` contains the settings that were used to run this request, so that a user has a record of the study area, filters, and parameters used to get these query results.
@@ -142,6 +144,6 @@ For this example, we'll use the example runconfig file located in the ```scaling
 
 ```python hls_scaling_script.py --scaling_runconfig ./scaling/scaling_runconfig_example.json```
 
-The formats of the values in the runconfig file are identical to the formats of the inputs for command line parsing. However, unlike the command line, there are no default values provided when using the unconfig option; all fields are required to have a value.
+The formats of the values in the runconfig file are identical to the formats of the inputs for command line parsing. However, unlike the command line, there are no default values provided when using the runconfig option; all fields are required to have a value.
 
 Of interest, the format of this input file is identical to the auto-generated ```settings.json``` file that is saved to each new study area directory. So if you want to re-use the same settings as a previous request, or make a subtle change, then you can use that existing ```settings.json``` file as a template, make a copy of it and modify it with your change, and then run the new request.
