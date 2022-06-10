@@ -8,7 +8,7 @@ import pickle
 
 import xml.etree.ElementTree as ET
 
-from scaling import utility
+from proteus.scaling import utility
 
 
 class StudyAreaGranules(object):

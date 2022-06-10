@@ -3,7 +3,7 @@ import argparse
 import warnings
 import json
 
-from scaling import utility
+from proteus.scaling import utility
 
 
 def parse_args():
