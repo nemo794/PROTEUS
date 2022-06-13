@@ -151,7 +151,7 @@ To only output the filtered search results and skip downloading and processing t
 
 To only download the HLS granules but not process them in PROTEUS, include the ```--do_not_process``` flag.
 
-If at a later time the downloading and/or processing steps are desired for this granule, use ```--rerun```. By default, --rerun will both download and process the granules, but these defaults can be overwritten ```--do_not_download``` and ```--do_not_process```. (Although nothing )
+If at a later time the downloading and/or processing steps are desired for this granule, use ```--rerun```. By default, `--rerun` will both download and process the granules, but these defaults can be overwritten ```--do_not_download``` and ```--do_not_process```.
 
 ##### Verbose flag ```-v``` or ```--verbose```
 
