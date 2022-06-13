@@ -19,7 +19,6 @@ from proteus.scaling import download_and_process as dap
 from proteus.scaling import args_setup
 
 ## Must-do's
-# TODO: rename "Study Area" to "query results" (or something like that)
 
 ## Features on-deck:
 # TODO: Have TileIDs as inputs.

@@ -183,9 +183,11 @@ def download_and_process_granule(granule_id, dir_path, list_of_urls, args):
         # Process through DSWx-HLS (dswx_hls.py)
         (proteus_stdout, proteus_stderr) = process_granule(granule_id, runconfig_path, log_path, args)
 
-        # TODO: If there are errors from dswx_hls.py, normally this function should return False.
-        # However, there are several errors occuring but the file outputs still look "ok",
-        # so ignore those errors for now. They are being reported in process_granule().
+        # TODO: If there are errors from dswx_hls.py, standard practise says that
+        # this function should return False.
+        # However, there are several warnings occuring in dswx_hls.py that are being
+        # sent to stderr, but the file outputs from dswx-hls.py look "ok",
+        # so ignore those warnings/errors for now.
 
     return True
 
