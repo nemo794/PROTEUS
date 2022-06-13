@@ -242,7 +242,8 @@ def create_runconfig_yaml(granule_dir_path, args):
 
     # Load the default dswx_hls.yaml template
     yaml = YAML()
-    runconfig = yaml.load(args['runconfig_template'])
+    with open(args['runconfig_template'], 'r') as rc:
+        runconfig = yaml.load(rc)
 
     # Update the yaml with the desired arguments
     runconfig['runconfig']['groups']['input_file_group']['input_file_path'] = \
@@ -263,9 +264,17 @@ def create_runconfig_yaml(granule_dir_path, args):
     runconfig['runconfig']['groups']['product_path_group']['output_dir'] = \
                 os.path.join(granule_dir_path, 'output_dir')
 
+    # TODO - Ask Gustavo what the defaults should be for these:
+    runconfig['runconfig']['groups']['product_path_group']['product_path'] = \
+                os.path.join(granule_dir_path, 'product_path')
+
+    runconfig['runconfig']['groups']['product_path_group']['product_id'] = \
+                'dswx_hls'    
+
     # save into the granule's directory
     runconfig_path = os.path.join(granule_dir_path,'dswx_hls_runconfig.yaml')
-    yaml.dump(runconfig, runconfig_path)
+    with open(runconfig_path, 'w') as rc:
+        yaml.dump(runconfig, rc)
 
     return runconfig_path
 
