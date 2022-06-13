@@ -24,8 +24,8 @@ the system with potentially thousands of requests at once.
 
 Internally, download_and_process_granule() first downloads (in serial)
 all of the necessary .tif files for that granule, and 
-second it generates a PROTEUS runconfig.yaml file and
-spawns a subprocess to process that granule in PROTEUS.
+second it generates a dswx_hls.py runconfig.yaml file and
+spawns a subprocess to process that granule in dswx_hls.py.
 
 Threads are well-suited for downloading files, and limiting the
 number of concurrent downloads to the number of threads should
@@ -34,7 +34,7 @@ HTTP 429 "Too Many Requests" errors from LPDAAC. However, this is
 (educated) rationale, and there could be room for improvement.
 
 subprocess.run() will spawn a new process in the OS for each granule
-to process it through PROTEUS.
+to process it through dswx_hls.py.
 Like any process, the OS will handle scheduling these either 
 in parallel or concurrently based on available CPU resources.
 A benefit of using subprocess.run() with a runconfig.yaml file
@@ -42,7 +42,7 @@ is that the runconfig script can be stored and reviewed at a
 later date.
 
 Possible design changes:
-* To call PROTEUS natively in Python and skip using the runconfig.yaml
+* To call dswx_hls.py natively in Python and skip using the runconfig.yaml
 file, two items need refactoring:
     1) process_granule()'s call to subprocess.run would need to be
     changed to the generate_dswx_layers(...)
@@ -95,9 +95,9 @@ def download_and_process_granules(job_dir, query_results_dict, args):
 
     # Downloaded and process each granule independently
     if args['do_not_process']:
-        print("Beginning downloading of granules. Per the --do_not_process input, these will not be processed in PROTEUS.")
+        print("Beginning downloading of granules. Per the --do_not_process input, these will not be processed in dswx_hls.py.")
     else:
-        print("Beginning downloading and processing of granules in PROTEUS.")
+        print("Beginning downloading and processing of granules in dswx_hls.py.")
 
     results = pool.starmap(download_and_process_granule, \
                     zip(list_of_granule_ids, \
@@ -166,10 +166,13 @@ def download_and_process_granule(granule_id, dir_path, list_of_urls, args):
         warnings.warn("An Exception occurred. Granule %s could not be downloaded and will not be processed." % granule_id)
         return False
 
-    # Process granule through DSWx-HLS (PROTEUS)
+    # Process granule through DSWx-HLS (dswx_hls.py)
     if not args['do_not_process']:
         # Create runconfig file
         runconfig_path = create_runconfig_yaml(dir_path, args)
+
+        # Create path to the dswx-hls.py log file
+        log_path = os.path.join(dir_path,'dswx-hls-log.txt')
 
         # Remove any leftover files from output_dir and scratch_dir
         for f in os.listdir(os.path.join(dir_path, 'output_dir')):
@@ -177,10 +180,10 @@ def download_and_process_granule(granule_id, dir_path, list_of_urls, args):
         for f in os.listdir(os.path.join(dir_path, 'scratch_dir')):
             os.remove(os.path.join(os.path.join(dir_path, 'scratch_dir'), f))
 
-        # Process through DSWx-HLS (PROTEUS)
-        (proteus_stdout, proteus_stderr) = process_granule(runconfig_path, granule_id, args)
+        # Process through DSWx-HLS (dswx_hls.py)
+        (proteus_stdout, proteus_stderr) = process_granule(granule_id, runconfig_path, log_path, args)
 
-        # TODO: If there are errors from PROTEUS, normally this function should return False.
+        # TODO: If there are errors from dswx_hls.py, normally this function should return False.
         # However, there are several errors occuring but the file outputs still look "ok",
         # so ignore those errors for now. They are being reported in process_granule().
 
@@ -212,7 +215,7 @@ def download_granule_data(granule_id, list_of_urls, dir_path, args):
         print('Download of granule ID %s complete.' % granule_id)
 
 
-def process_granule(runconfig_path, granule_id, args):
+def process_granule(granule_id, runconfig_path, log_path, args):
 
     if args['verbose']:
         print('Beginning processing of granule ID %s...' % granule_id)
@@ -220,20 +223,18 @@ def process_granule(runconfig_path, granule_id, args):
     # Process through PROTEUS
     # Note that PROTEUS must be alread installed on the system to run.
     # See: https://github.com/opera-adt/PROTEUS for instructions.
-    # TODO SAM LOOK HERE
-    # p = subprocess.run(['dswx_hls.py', runconfig_path, '--log-file', dswx_hls_log_path], \
-    p = subprocess.run(['dswx_hls.py', runconfig_path], \
+    p = subprocess.run(['dswx_hls.py', runconfig_path, '--log-file', log_path], \
                         capture_output=True, text=True
                         )
                         
     # If process resulted in an error, then do something
     if p.stderr:
-        warnings.warn("Errors were generated from PROTEUS while processing granule ID %s." % granule_id)
+        warnings.warn("Warnings/Errors were generated from dswx_hls.py while processing granule ID %s. To display these errors to console, re-process the granule via this scaling script by using the --rerun AND --verbose flags." % granule_id)
         if args['verbose']:
             print(p.stderr)
 
     elif args['verbose']:
-        print('Processing in PROTEUS of granule ID %s complete.' % granule_id)
+        print('Processing in dswx_hls.py of granule ID %s complete.' % granule_id)
 
     return (p.stdout, p.stderr)
 

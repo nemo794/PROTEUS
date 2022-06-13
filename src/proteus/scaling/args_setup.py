@@ -169,11 +169,13 @@ def parse_args():
                         )
 
     msg = '''
-    Template PROTEUS Runconfig file. In the default template, 
-    all values surrounded by $$<VALUE>$$ will be
-    replaced with the appropriate paths by the scaling script.
-    To alter other items (such as the output DSWx-HLS products),
-    please edit those fields in the template file before running the scaling script.
+    Path to default runconfig .yaml file for dswx_hls.py.
+    The scaling script will keep all settings in the .yaml as-is, 
+    with the exceptions of: input_dir, dem_file, landcover_file, 
+    worldcover_file, scratch_dir, output_dir, product_path, and product_id
+    which the scaling script will automatically customize for 
+    the desired study area.
+    Defaults to the default runconfig yaml: ./src/proteus/defaults/dswx_hls.yaml
     '''
     parser.add_argument('--runconfig_template',
                         dest='runconfig_template',
