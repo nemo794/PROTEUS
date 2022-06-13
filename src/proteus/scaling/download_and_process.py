@@ -172,7 +172,7 @@ def download_and_process_granule(granule_id, dir_path, list_of_urls, args):
         runconfig_path = create_runconfig_yaml(dir_path, args)
 
         # Create path to the dswx-hls.py log file
-        log_path = os.path.join(dir_path,'dswx-hls-log.txt')
+        log_path = os.path.join(dir_path,'dswx_hls_log.txt')
 
         # Remove any leftover files from output_dir and scratch_dir
         for f in os.listdir(os.path.join(dir_path, 'output_dir')):
@@ -245,7 +245,7 @@ def create_runconfig_yaml(granule_dir_path, args):
 
     # Load the default dswx_hls.yaml template
     yaml = YAML()
-    with open(args['runconfig_template'], 'r') as rc:
+    with open(args['runconfig_yaml'], 'r') as rc:
         runconfig = yaml.load(rc)
 
     # Update the yaml with the desired arguments

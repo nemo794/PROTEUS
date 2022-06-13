@@ -18,21 +18,21 @@ def parse_args():
     (See scaling/scaling_runconfig_example.json for an example.)
     NOTE: The values in this runconfig file will supercede all other command line inputs.
     '''
-    parser.add_argument('--scaling_runconfig',
+    parser.add_argument('--scaling-runconfig',
                         dest='scaling_runconfig',
                         type=str,
                         default='',
                         help=msg
                         )
 
-    parser.add_argument('--root_dir','--root',
+    parser.add_argument('--root-dir','--root',
                         dest='root_dir',
                         type=str,
                         default='.',
                         help='Path to directory to store the request results.'
                         )
 
-    parser.add_argument('--job_name','--name',
+    parser.add_argument('--job-name','--name',
                         dest='job_name',
                         type=str,
                         default='StudyArea',
@@ -44,7 +44,7 @@ def parse_args():
     Coordinates are enclosed in quotes and separated by a space.
     Ex: "-120 43 -118 48"
     '''
-    parser.add_argument('--bbox', '--bounding_box', '--bb',
+    parser.add_argument('--bbox', '--bounding-box', '--bb',
                         dest='bounding_box',
                         type=str,
                         default='',                        
@@ -60,7 +60,7 @@ def parse_args():
     (This scaling script uses pystac-client's API to query STAC, so the input 
     format is the same.)
     '''
-    parser.add_argument('--date_range',
+    parser.add_argument('--date-range',
                         dest='date_range',
                         type=str,
                         default='',
@@ -86,7 +86,7 @@ def parse_args():
     Must be an integer in range [0,100]. Default is 100.'
     0 == no clouds present, 100 == images could be fully covered in clouds
     '''
-    parser.add_argument('--cloud_cover_max','--cc',
+    parser.add_argument('--cloud-cover-max','--cc',
                         dest='cloud_cover_max',
                         type=int,
                         default=100,
@@ -98,7 +98,7 @@ def parse_args():
     Must be an integer in range [0,100]. Default is 0.'
     0 == image can have no pixels with satellite data, 100 == all pixels have satellite data
     '''
-    parser.add_argument('--spatial_coverage_min', '--sc',
+    parser.add_argument('--spatial-coverage-min', '--sc',
                         dest='spatial_coverage_min',
                         type=int,
                         default=0,
@@ -109,7 +109,7 @@ def parse_args():
     Flag to filter for granules where L30 and S30 granules exist for the same tile(s) 
     on the same date. Note that these "same day" occurances are relatively rare.
     '''
-    parser.add_argument('--same_day',
+    parser.add_argument('--same-day',
                         dest='same_day',
                         action='store_true',
                         default=False,
@@ -124,7 +124,7 @@ def parse_args():
     so that do_not_download is False and do_not_process is False.
     2) Use the --rerun flag, e.g. ```python hls_scaling_script.py --root_dir <root_dir> --name <job_name> --rerun```
     '''
-    parser.add_argument('--do_not_download',
+    parser.add_argument('--do-not-download',
                         dest='do_not_download',
                         action='store_true',
                         default=False,
@@ -140,7 +140,7 @@ def parse_args():
     so that do_not_process is False.
     2) Use the --rerun flag, e.g. ```python hls_scaling_script.py --root_dir <root_dir> --name <job_name> --rerun```
     '''
-    parser.add_argument('--do_not_process',
+    parser.add_argument('--do-not-process',
                         dest='do_not_process',
                         action='store_true',
                         default=False,
@@ -177,8 +177,8 @@ def parse_args():
     the desired study area.
     Defaults to the default runconfig yaml: ./src/proteus/defaults/dswx_hls.yaml
     '''
-    parser.add_argument('--runconfig_template',
-                        dest='runconfig_template',
+    parser.add_argument('--runconfig-yaml',
+                        dest='runconfig_yaml',
                         type=str,
                         default='./src/proteus/defaults/dswx_hls.yaml',
                         help=msg
@@ -191,7 +191,7 @@ def parse_args():
     workflow for populating each granule's runconfig file will need to be updated.
     See: download_and_process.py > create_runconfig_yaml()
     '''
-    parser.add_argument('--dem_file',
+    parser.add_argument('--dem-file',
                         dest='dem_file',
                         type=str,
                         default='/home/shiroma/dat/nisar-dem-copernicus/EPSG4326.vrt',
@@ -205,7 +205,7 @@ def parse_args():
     workflow for populating each granule's runconfig file will need to be updated.
     See: download_and_process.py > create_runconfig_yaml()
     '''
-    parser.add_argument('--landcover_file',
+    parser.add_argument('--landcover-file',
                         dest='landcover_file',
                         type=str,
                         default='/home/shiroma/dat/copernicus_landcover/PROBAV_LC100_global_v3.0.1_2019-nrt_Discrete-Classification-map_EPSG-4326.tif',
@@ -219,7 +219,7 @@ def parse_args():
     workflow for populating each granule's runconfig file will need to be updated.
     See: download_and_process.py > create_runconfig_yaml()
     '''
-    parser.add_argument('--worldcover_file',
+    parser.add_argument('--worldcover-file',
                         dest='worldcover_file',
                         type=str,
                         default='/mnt/aurora-r0/jungkyo/data/landcover.vrt',
@@ -233,7 +233,7 @@ def parse_args():
     B02, B03, B04, B05, B06, B07, Fmask.
     Defaults to: 'B02,B03,B04,B05,B06,B07,Fmask'
     '''
-    parser.add_argument('--l30_v2_bands',
+    parser.add_argument('--l30-v2-bands',
                     dest='l30_v2_bands',
                     type=str,
                     default='B02,B03,B04,B05,B06,B07,Fmask',
@@ -247,7 +247,7 @@ def parse_args():
     B02, B03, B04, B8A, B11, B12, Fmask.
     Defaults to: 'B02,B03,B04,B8A,B11,B12,Fmask'
     '''
-    parser.add_argument('--s30_v2_bands',
+    parser.add_argument('--s30-v2-bands',
                     dest='s30_v2_bands',
                     type=str,
                     default='B02,B03,B04,B8A,B11,B12,Fmask',
@@ -259,8 +259,8 @@ def parse_args():
     For HLS, use LPCLOUD: https://cmr.earthdata.nasa.gov/stac/LPCLOUD/
     Defaults to: 'https://cmr.earthdata.nasa.gov/stac/LPCLOUD/'
     '''
-    parser.add_argument('--STAC_URL_LPCLOUD',
-                    dest='STAC_URL_LPCLOUD',
+    parser.add_argument('--stac-url-lpcloud',
+                    dest='stac_url_lpcloud',
                     type=str,
                     default='https://cmr.earthdata.nasa.gov/stac/LPCLOUD/',
                     help=msg
@@ -272,8 +272,8 @@ def parse_args():
     HLS v2.0 L30 and S30 use these collections: HLSL30.v2.0 and HLSS30.v2.0, respectively.
     Defaults to: 'HLSL30.v2.0,HLSS30.v2.0'
     '''
-    parser.add_argument('--COLLECTIONS',
-                    dest='COLLECTIONS',
+    parser.add_argument('--collections',
+                    dest='collections',
                     type=str,
                     default='HLSL30.v2.0,HLSS30.v2.0',
                     help=msg
@@ -382,8 +382,8 @@ def verify_input_args(args):
         assert set(args['months'].split(',')).issubset(["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]), \
             "months input must be a subset of 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec'."
 
-        assert set(args['COLLECTIONS'].split(',')).issubset(['HLSL30.v2.0','HLSS30.v2.0']), \
-            'Only HLSL30.v2.0 and/or HLSS30.v2.0 currently supported for --COLLECTIONS input.'
+        assert set(args['collections'].split(',')).issubset(['HLSL30.v2.0','HLSS30.v2.0']), \
+            'Only HLSL30.v2.0 and/or HLSS30.v2.0 currently supported for --collections input.'
 
 
 def reformat_args(args):
@@ -412,7 +412,7 @@ def reformat_args(args):
     if isinstance(args['s30_v2_bands'], str):
         args['s30_v2_bands'] = args['s30_v2_bands'].split(',')
 
-    # Transform COLLECTIONS from string into a list of strings.
+    # Transform collections from string into a list of strings.
     # Ex: 'HLSL30.v2.0,HLSS30.v2.0' -->  ['HLSL30.v2.0', 'HLSS30.v2.0']
-    if isinstance(args['COLLECTIONS'], str):
-        args['COLLECTIONS'] = args['COLLECTIONS'].split(',')
+    if isinstance(args['collections'], str):
+        args['collections'] = args['collections'].split(',')

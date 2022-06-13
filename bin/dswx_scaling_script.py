@@ -22,7 +22,6 @@ from proteus.scaling import args_setup
 # TODO: get "python setup.py install" working
 # TODO: get "pip install ." working
 # TODO: Check / throw error for bad .netrc credentials
-# TODO: Dashes rather than underscores for arguments
 # TODO: dswx_hls.py output/warning handling. Output goes to a log file, but warnings are sent to stderr.
 
 ## Features on-deck:
@@ -51,13 +50,13 @@ def main(args):
     if not args['rerun']:
         ## Query NASA's STAC-CMR
         print("Beginning query of NASA's STAC-CMR for available granules in date_range and study area...")
-        catalog = Client.open(args['STAC_URL_LPCLOUD'])
+        catalog = Client.open(args['stac_url_lpcloud'])
 
         # STAC API: https://github.com/radiantearth/stac-api-spec/tree/master/item-search
         # pystac-client API for search: https://github.com/stac-utils/pystac-client/blob/7bedea4c0b9a181656d4a891ccf6c02361da8415/pystac_client/item_search.py#L87
         # (The pystac-client API is what is being used in this script.)
         search = catalog.search(
-            collections=args['COLLECTIONS'],
+            collections=args['collections'],
             bbox=args['bounding_box'],
             datetime=args['date_range'],
             method='POST'
