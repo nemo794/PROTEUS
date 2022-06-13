@@ -89,7 +89,7 @@ conda install -c conda-forge --file docker/requirements.txt.forge
 ```
 
 Set the environment variables.
-(NOTE: Unless you add these to your ~/.bash_profile or similar, this process will need to be repeated for each new shell.)
+(NOTE: Unless you update your ~/.bash_profile or similar with the full paths, the process of setting the environment variables will need to be repeated for each new shell.)
 ```bash
 cd PROTEUS
 export PROTEUS_HOME=$PWD
@@ -97,19 +97,16 @@ export PYTHONPATH=${PYTHONPATH}:${PROTEUS_HOME}/src
 export PATH=${PATH}:${PROTEUS_HOME}/bin
 pytest tests -rpP
 ```
-Make sure the tests pass. There is a known issue with the tiledb module being installed for gdal, documented in [this SO post](https://stackoverflow.com/questions/71904252/gdalinfo-error-while-loading-shared-libraries-libtiledb-so-2-2-cannot-open-sh). As an example of how to fix this, if the error message says that tiledb 2.2 is required, then force use of tiledb 2.2 with this command:
+Make sure the tests pass. There is a known issue with the tiledb module being installed for gdal, documented in [this SO post](https://stackoverflow.com/questions/71904252/gdalinfo-error-while-loading-shared-libraries-libtiledb-so-2-2-cannot-open-sh). To fix this, force the use of tiledb to be the version specified in the error message. For example, if the error message says that tiledb 2.2 is required, then force use of tiledb 2.2 with this command:
 
 ```bash
 conda install gdal libgdal tiledb=2.2
 ```
-(Update the version number based on the error message you receive.)
 
-2. Setup your NASA Earthdata credentials store them in a netrc file
+2. Setup your NASA Earthdata credentials, and store them in a netrc file
 - A [NASA Earthdata Login Account](https://urs.earthdata.nasa.gov/) is required to download HLS data.
 - The .netrc file will allow Python scripts to log into any Earthdata Login without being prompted for credentials every time you run. The .netrc file should be placed in your HOME directory. (On UNIX, do ```echo $HOME``` for the home directory.)
 - To create your .netrc file, download the [.netrc file template](https://git.earthdata.nasa.gov/projects/LPDUR/repos/daac_data_download_python/browse/.netrc), update with your Earthdata login credentials, and save to your home directory.
-
-3. Use the dswx_scaling_script.py. A tutorial with examples can be found below.
 
 
 ### Usage
