@@ -19,6 +19,11 @@ from proteus.scaling import download_and_process as dap
 from proteus.scaling import args_setup
 
 ## Must-do's
+# TODO: get "python setup.py install" working
+# TODO: get "pip install ." working
+# TODO: Check / throw error for bad .netrc credentials
+# TODO: Dashes rather than underscores for arguments
+# TODO: dswx_hls.py output/warning handling. Output goes to a log file, but warnings are sent to stderr.
 
 ## Features on-deck:
 # TODO: Have TileIDs as inputs.
