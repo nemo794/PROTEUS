@@ -103,10 +103,11 @@ Make sure the tests pass. There is a known issue with the tiledb module being in
 conda install gdal libgdal tiledb=2.2
 ```
 
-2. Setup your NASA Earthdata credentials, and store them in a netrc file
+2. Setup your NASA Earthdata credentials, and store them in a netrc file. (Required to download HLS granules.)
 - A [NASA Earthdata Login Account](https://urs.earthdata.nasa.gov/) is required to download HLS data.
+- If the Earthdata credentials are invalid, the NASA CMR-STAC search query can still be completed. However, the HLS granule data cannot be downloaded.
 - The .netrc file will allow Python scripts to log into any Earthdata Login without being prompted for credentials every time you run. The .netrc file should be placed in your HOME directory. (On UNIX, do ```echo $HOME``` for the home directory.)
-- To create your .netrc file, download the [.netrc file template](https://git.earthdata.nasa.gov/projects/LPDUR/repos/daac_data_download_python/browse/.netrc), update with your Earthdata login credentials, and save to your home directory.
+- To create your .netrc file, download the [.netrc file template](https://git.earthdata.nasa.gov/projects/LPDUR/repos/daac_data_download_python/browse/.netrc), update with your Earthdata login credentials, and save to your home directory. If you already have a .netrc file, then please update it to also include your Earthdata credentials.
 
 
 ### Usage

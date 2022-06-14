@@ -95,7 +95,7 @@ def download_and_process_granules(job_dir, query_results_dict, args):
 
     # Downloaded and process each granule independently
     if args['do_not_process']:
-        print("Beginning downloading of granules. Per the --do_not_process input, these will not be processed in dswx_hls.py.")
+        print("Beginning downloading of granules. Per the --do-not-process input, these will not be processed in dswx_hls.py.")
     else:
         print("Beginning downloading and processing of granules in dswx_hls.py.")
 

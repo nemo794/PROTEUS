@@ -46,13 +46,33 @@ def download2file(url, file_name):
     file_name : (str) the filename (with path) of where to save the downloaded file
 
     Returns True if download completed, False if download had an error.
+    
+    Background info:
+    HTTP codes range from the 1XX to 5XX, Common status codes:
+    1XX - Information
+    2XX - Success  (200 means the request was successful)
+    3XX - Redirect
+    4XX - Client Error (you made an error)
+    5XX - Server Error (they made an error)
+
+    If the status code is 4XX or 5XX, Python's Requests module will evaluate the response object to False.
     '''
+
+    # Surround with try/catch so that a failed request does not kill the entire scaling script
     try:
         data = requests.get(url, allow_redirects=True)
+    except Exception as e:
+        warnings.warn(e)
+        return False
+
+    if data:
         open(file_name, 'wb').write(data.content)
         return True
-    except Exception as e:
-        print(e)
+    else:
+        if data.status_code == 401:
+            print(f"Error {data.status_code}. Check .netrc Earthdata credentials. Failed to download file {url}.")
+        else: 
+            print(f"Error {data.status_code}. Failed to download file {url}.")
         return False
 
 

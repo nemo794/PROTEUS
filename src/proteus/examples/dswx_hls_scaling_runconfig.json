@@ -17,7 +17,7 @@
     "worldcover_file": "/mnt/aurora-r0/jungkyo/data/landcover.vrt",
     "l30_v2_bands": "B02,B03,B04,B05,B06,B07,Fmask",
     "s30_v2_bands": "B02,B03,B04,B8A,B11,B12,Fmask",
-    "STAC_URL_LPCLOUD": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/",
-    "COLLECTIONS": "HLSL30.v2.0,HLSS30.v2.0",
+    "stac_url_lpcloud": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/",
+    "collections": "HLSL30.v2.0,HLSS30.v2.0",
     "verbose": false
 }
