@@ -3,7 +3,6 @@ import sys
 import requests
 import warnings
 from datetime import datetime
-import json
 import pickle
 
 import xml.etree.ElementTree as ET

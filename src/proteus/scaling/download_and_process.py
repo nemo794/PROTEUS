@@ -4,7 +4,6 @@ import requests
 import warnings
 import subprocess
 from multiprocessing.pool import ThreadPool
-from multiprocessing import Pool
 from itertools import repeat
 
 import xml.etree.ElementTree as ET
@@ -91,7 +90,9 @@ def download_and_process_granules(job_dir, query_results_dict, args):
 
     # Limit the maximum number of simultaneous downloads and processes to
     # the number of available CPUs.
-    pool = ThreadPool(os.cpu_count())
+    # pool = ThreadPool(os.cpu_count())
+    pool = ThreadPool(40)
+
 
     # Downloaded and process each granule independently
     if args['do_not_process']:

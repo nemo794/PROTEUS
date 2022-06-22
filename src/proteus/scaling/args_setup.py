@@ -52,6 +52,20 @@ def parse_args():
                         )
 
     msg = '''
+    Path to a .geojson file of the area to observe. Format of Geojson
+    is per the STAC API Spec. These formats include:
+    GeoJSON Point (object) or GeoJSON LineString (object) or 
+    GeoJSON Polygon (object) or GeoJSON MultiPoint (object) or 
+    GeoJSON MultiLineString (object) or GeoJSON MultiPolygon (object) (GeoJSON Geometry) 
+    '''
+    parser.add_argument('--intersects',
+                        dest='intersects',
+                        type=str,
+                        default='',                        
+                        help=msg
+                        )
+
+    msg = '''
     String representing the date range to search.
     Either a single datetime or datetime range can be used.
     Examples: "2020-06-02/2021-06-30", "2021-08-13/2021-08", "2020"
@@ -83,7 +97,7 @@ def parse_args():
 
     msg = '''
     'The maximum percentage of a granule's image with cloud cover.
-    Must be an integer in range [0,100]. Default is 100.'
+    Must be an integer in range [0,100].'
     0 == no clouds present, 100 == images could be fully covered in clouds
     '''
     parser.add_argument('--cloud-cover-max','--cc',
@@ -95,7 +109,7 @@ def parse_args():
 
     msg = '''
     The minimum percentage of a granule's tile that must have data.
-    Must be an integer in range [0,100]. Default is 0.'
+    Must be an integer in range [0,100].'
     0 == image can have no pixels with satellite data, 100 == all pixels have satellite data
     '''
     parser.add_argument('--spatial-coverage-min', '--sc',
@@ -138,7 +152,7 @@ def parse_args():
     To later process these results, do two things:
     1) Edit the file <root_dir>/<job_name>/settings.json
     so that do_not_process is False.
-    2) Use the --rerun flag, e.g. ```python hls_scaling_script.py --root_dir <root_dir> --name <job_name> --rerun```
+    2) Use the --rerun flag, e.g. ```python hls_scaling_script.py --root-dir <root-dir> --name <job-name> --rerun```
     '''
     parser.add_argument('--do-not-process',
                         dest='do_not_process',
@@ -175,7 +189,6 @@ def parse_args():
     worldcover_file, scratch_dir, output_dir, product_path, and product_id
     which the scaling script will automatically customize for 
     the desired study area.
-    Defaults to the default runconfig yaml: ./src/proteus/defaults/dswx_hls.yaml
     '''
     parser.add_argument('--runconfig-yaml',
                         dest='runconfig_yaml',
@@ -231,7 +244,6 @@ def parse_args():
     Bands must be separated by commas and have no spaces.
     For PROTEUS, the following L30 bands are required: 
     B02, B03, B04, B05, B06, B07, Fmask.
-    Defaults to: 'B02,B03,B04,B05,B06,B07,Fmask'
     '''
     parser.add_argument('--l30-v2-bands',
                     dest='l30_v2_bands',
@@ -245,7 +257,6 @@ def parse_args():
     Bands must be separated by commas and have no spaces.
     For PROTEUS, the following L30 bands are required: 
     B02, B03, B04, B8A, B11, B12, Fmask.
-    Defaults to: 'B02,B03,B04,B8A,B11,B12,Fmask'
     '''
     parser.add_argument('--s30-v2-bands',
                     dest='s30_v2_bands',
@@ -257,7 +268,6 @@ def parse_args():
     msg = '''
     STAC Server to query.
     For HLS, use LPCLOUD: https://cmr.earthdata.nasa.gov/stac/LPCLOUD/
-    Defaults to: 'https://cmr.earthdata.nasa.gov/stac/LPCLOUD/'
     '''
     parser.add_argument('--stac-url-lpcloud',
                     dest='stac_url_lpcloud',
@@ -270,7 +280,6 @@ def parse_args():
     Collections to query.
     Separate collection names by a comma.
     HLS v2.0 L30 and S30 use these collections: HLSL30.v2.0 and HLSS30.v2.0, respectively.
-    Defaults to: 'HLSL30.v2.0,HLSS30.v2.0'
     '''
     parser.add_argument('--collections',
                     dest='collections',
@@ -372,7 +381,12 @@ def verify_input_args(args):
     # A new Study Area job is requested; check the inputs used for filtering
     else:
         assert args['date_range'], "A date_range must be provided and not an empty string."
-        assert args['bounding_box'], "A bounding_box must be provided."
+
+        # Must have provide either a bounding box or an intersects input, but not both
+        assert bool(args['bounding_box']) ^ bool(args['intersects']), "Either a bounding box or intersects argument must be provided."
+        if args['intersects']:
+            assert os.path.exists(args['intersects']), "--intersects argument should be a path to a GEOJSON file."
+
         assert 0 <= args['cloud_cover_max'] and args['cloud_cover_max'] <= 100, \
             "cloud_cover_max input must be between 0 and 100, inclusive."
         assert 0 <= args['spatial_coverage_min'] and args['spatial_coverage_min'] <= 100, \

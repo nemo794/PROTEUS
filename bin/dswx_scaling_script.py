@@ -51,21 +51,32 @@ def main(args):
         print("Beginning query of NASA's STAC-CMR for available granules in date_range and study area...")
         catalog = Client.open(args['stac_url_lpcloud'])
 
-        # STAC API: https://github.com/radiantearth/stac-api-spec/tree/master/item-search
+        # Setup the search query. References:
         # pystac-client API for search: https://github.com/stac-utils/pystac-client/blob/7bedea4c0b9a181656d4a891ccf6c02361da8415/pystac_client/item_search.py#L87
-        # (The pystac-client API is what is being used in this script.)
-        search = catalog.search(
-            collections=args['collections'],
-            bbox=args['bounding_box'],
-            datetime=args['date_range'],
-            method='POST'
-            # Some STAC Catalogs allow direct querying of eo:cloud_cover, but this fails for HLS
-            # See: https://pystac-client.readthedocs.io/en/latest/usage.html#query-filter
-            # See: https://github.com/radiantearth/stac-api-spec/tree/master/fragments/query
-            # If querying becomes functional in the future, then uncomment one of the following lines:
-            # filter={'eo:cloud_cover': {'lte': '20'}}
-            # filter=['eo:cloud_cover<=20']
-            )
+        # General STAC API: https://github.com/radiantearth/stac-api-spec/tree/master/item-search
+
+        # Future work: Some STAC Catalogs allow direct querying of eo:cloud_cover, but this fails for HLS
+        # See: https://pystac-client.readthedocs.io/en/latest/usage.html#query-filter
+        # See: https://github.com/radiantearth/stac-api-spec/tree/master/fragments/query
+        # If querying becomes functional in the future, then uncomment one of the following lines:
+        # filter={'eo:cloud_cover': {'lte': '20'}}
+        # filter=['eo:cloud_cover<=20']
+        if args['bounding_box']:
+            search = catalog.search(
+                collections=args['collections'],
+                bbox=args['bounding_box'],
+                datetime=args['date_range'],
+                method='POST'
+                )
+        else:
+            with open(args['intersects'], 'r') as f:
+                roi = json.load(f)
+            search = catalog.search(
+                collections=args['collections'],
+                intersects=roi,
+                datetime=args['date_range'],
+                method='POST'
+                )
 
         for attempt in range(1,4):
             try:
@@ -97,7 +108,6 @@ def main(args):
 
             if args['same_day']:
                 study_area.filter_S30_L30_sameDay()
-
 
         ## Save results from query to disk.
 
