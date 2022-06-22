@@ -18,6 +18,8 @@ landcover_mask_type = 'standard'
 
 COMPARE_DSWX_HLS_PRODUCTS_ERROR_TOLERANCE = 1e-6
 
+DEM_MARGIN_IN_PIXELS = 10
+
 logger = logging.getLogger('dswx_hls')
 
 l30_v1_band_dict = {'blue': 'band02',
@@ -1761,6 +1763,7 @@ def _makedirs(input_file):
 def _save_output_rgb_file(red, green, blue, output_file,
                           offset_dict, scale_dict,
                           flag_offset_and_scale_inputs,
+                          dswx_metadata_dict,
                           geotransform, projection,
                           invalid_ind = None, scratch_dir='.',
                           output_files_list = None,
@@ -1783,6 +1786,8 @@ def _save_output_rgb_file(red, green, blue, output_file,
               Scale dictionary that stores bands scaling factor
        flag_offset_and_scale_inputs: bool
               Flag to indicate if the band has been already offseted and scaled
+       dswx_metadata_dict: dict
+              Metadata dictionary to be written into the output file
        geotransform: numpy.ndarray
               Geotransform describing the output file geolocation
        projection: str
@@ -1802,6 +1807,7 @@ def _save_output_rgb_file(red, green, blue, output_file,
     driver = gdal.GetDriverByName("GTiff")
     gdal_dtype = GDT_Float32
     gdal_ds = driver.Create(output_file, shape[1], shape[0], 3, gdal_dtype)
+    gdal_ds.SetMetadata(dswx_metadata_dict)
     gdal_ds.SetGeoTransform(geotransform)
     gdal_ds.SetProjection(projection)
 
@@ -1874,7 +1880,7 @@ def get_projection_proj4(projection):
 def _relocate(input_file, geotransform, projection,
               length, width, scratch_dir = '.',
               resample_algorithm='nearest',
-              relocated_file=None):
+              relocated_file=None, margin_in_pixels=0):
     """Relocate/reproject a file (e.g., landcover or DEM) based on geolocation
        defined by a geotransform, output dimensions (length and width)
        and projection
@@ -1888,39 +1894,43 @@ def _relocate(input_file, geotransform, projection,
        projection: str
               Output file's projection
        length: int
-              Output length
+              Output length before adding the margin defined by
+              `margin_in_pixels`
        width: int
-              Output width
+              Output width before adding the margin defined by
+              `margin_in_pixels`
        scratch_dir: str (optional)
               Temporary directory
        resample_algorithm: str
               Resample algorithm
        relocated_file: str
               Relocated file (output file)
+       margin_in_pixels: int
+              Margin in pixels (default: 0)
 
        Returns
        -------
        relocated_array : numpy.ndarray
               Relocated array
     """
-    logger.info(f'relocating file: {input_file}')
-
     dy = geotransform[5]
     dx = geotransform[1]
-    y0 = geotransform[3]
-    x0 = geotransform[0]
+    y0 = geotransform[3] - margin_in_pixels * dy
+    x0 = geotransform[0] - margin_in_pixels * dx
 
-    xf = x0 + width * dx
-    yf = y0 + length * dy
+    yf = y0 + (length + 2 * margin_in_pixels) * dy
+    xf = x0 + (width + 2 * margin_in_pixels) * dx
 
     dstSRS = get_projection_proj4(projection)
 
     if relocated_file is None:
         relocated_file = tempfile.NamedTemporaryFile(
                     dir=scratch_dir, suffix='.tif').name
-        logger.info(f'temporary file: {relocated_file}')
+        logger.info(f'relocating file: {input_file} to'
+                    f' temporary file: {relocated_file}')
     else:
-        logger.info(f'relocated file: {relocated_file}')
+        logger.info(f'relocating file: {input_file} to'
+                    f' file: {relocated_file}')
 
     _makedirs(relocated_file)
 
@@ -2393,7 +2403,8 @@ def generate_dswx_layers(input_list,
 
     hls_dataset_name = image_dict['hls_dataset_name']
     _populate_dswx_metadata_datasets(dswx_metadata_dict, hls_dataset_name,
-        dem_file=None, landcover_file=None, worldcover_file=None)
+        dem_file=dem_file, landcover_file=landcover_file,
+        worldcover_file=worldcover_file)
 
     spacecraft_name = dswx_metadata_dict['SPACECRAFT_NAME']
     logger.info(f'processing HLS {spacecraft_name[0]}30 dataset v.{version}')
@@ -2432,27 +2443,36 @@ def generate_dswx_layers(input_list,
 
     if dem_file is not None:
         # DEM
-        if output_dem_layer is None:
-            dem_cropped_file = tempfile.NamedTemporaryFile(
-                    dir=scratch_dir, suffix='.tif').name
-        else:
-            dem_cropped_file = output_dem_layer
-
-        dem = _relocate(dem_file, geotransform, projection,
-                        length, width, scratch_dir,
-                        resample_algorithm='cubic',
-                        relocated_file=dem_cropped_file)
-
-        if output_dem_layer is not None:
-            save_as_cog(output_dem_layer, scratch_dir, logger)
-
-        # TODO:
-        #     1. crop DEM with a margin
-        #     2. save metadata to DEM layer
+        dem_cropped_file = tempfile.NamedTemporaryFile(
+            dir=scratch_dir, suffix='.tif').name
+        dem_with_margin = _relocate(dem_file, geotransform, projection,
+                                    length, width, scratch_dir,
+                                    resample_algorithm='cubic',
+                                    relocated_file=dem_cropped_file,
+                                    margin_in_pixels=DEM_MARGIN_IN_PIXELS)
 
         hillshade = _compute_hillshade(dem_cropped_file, scratch_dir,
-                                         sun_azimuth_angle, sun_elevation_angle)
-        shadow_layer = _compute_otsu_threshold(hillshade, is_normalized = True)
+                                       sun_azimuth_angle, sun_elevation_angle)
+        shadow_layer_with_margin = _compute_otsu_threshold(hillshade, is_normalized = True)
+
+        # remove extra margin from DEM
+        dem = dem_with_margin[DEM_MARGIN_IN_PIXELS:-DEM_MARGIN_IN_PIXELS,
+                              DEM_MARGIN_IN_PIXELS:-DEM_MARGIN_IN_PIXELS]
+        del dem_with_margin
+        if output_dem_layer is not None:
+           _save_array(dem, output_dem_layer,
+                       dswx_metadata_dict, geotransform, projection,
+                       description=band_description_dict['DEM'],
+                       scratch_dir=scratch_dir,
+                       output_files_list=build_vrt_list)
+        if not output_file:
+            del dem
+
+        # remove extra margin from shadow_layer
+        shadow_layer = shadow_layer_with_margin[
+            DEM_MARGIN_IN_PIXELS:-DEM_MARGIN_IN_PIXELS,
+            DEM_MARGIN_IN_PIXELS:-DEM_MARGIN_IN_PIXELS]
+        del shadow_layer_with_margin
 
         if output_shadow_layer:
             _save_array(shadow_layer, output_shadow_layer,
@@ -2480,6 +2500,7 @@ def generate_dswx_layers(input_list,
         _save_output_rgb_file(red, green, blue, output_rgb_file,
                               offset_dict, scale_dict,
                               flag_offset_and_scale_inputs,
+                              dswx_metadata_dict,
                               geotransform, projection,
                               invalid_ind=invalid_ind,
                               scratch_dir=scratch_dir,
@@ -2489,6 +2510,7 @@ def generate_dswx_layers(input_list,
         _save_output_rgb_file(swir1, nir, red, output_infrared_rgb_file,
                               offset_dict, scale_dict,
                               flag_offset_and_scale_inputs,
+                              dswx_metadata_dict,
                               geotransform, projection,
                               invalid_ind=invalid_ind,
                               scratch_dir=scratch_dir,
