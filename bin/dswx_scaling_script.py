@@ -62,18 +62,22 @@ def main(args):
         # If querying becomes functional in the future, then uncomment one of the following lines:
         # filter={'eo:cloud_cover': {'lte': '20'}}
         # filter=['eo:cloud_cover<=20']
+        max_items = 1000
         if args['bounding_box']:
             search = catalog.search(
                 collections=args['collections'],
+                max_items=max_items,
                 bbox=args['bounding_box'],
                 datetime=args['date_range'],
                 method='POST'
                 )
+        # Use the intersects input
         else:
             with open(args['intersects'], 'r') as f:
                 roi = json.load(f)
             search = catalog.search(
                 collections=args['collections'],
+                max_items=max_items,
                 intersects=roi,
                 datetime=args['date_range'],
                 method='POST'
@@ -82,15 +86,20 @@ def main(args):
         for attempt in range(1,4):
             try:
                 item_collection = search.get_all_items()
-            except APIError as e:
+                break
+            except Exception as e:
                 if attempt < 3:
+                    print("Exception caught: ", e)
                     warnings.warn:("(Attempt %d of 3) Could not connect to STAC server. Will sleep for 5 secs and try again.", attempt)
                     time.sleep(5)
                 else:
+                    print("Exception caught: ", e)
                     warnings.warn:("(Attempt %d of 3.) Could not connect to STAC server.  Exiting program.", attempt)
                     sys.exit()
 
         print("Number of granules in initial query of STAC (entire date_range): ", len(item_collection))
+        if len(item_collection) == max_items:
+            print("WARNING: STAC Server likely has more than %s results, but only %s were returned." % (max_items,max_items))
 
         ## Create an object to hold the desired granules to download.
         # For efficiency of computation, filtering for cloud_cover_max and months
@@ -115,6 +124,20 @@ def main(args):
         # Make new job directory for this Study Area to hold all outputs
         job_dir = utility.make_job_dir(args['root_dir'], args['job_name'])
 
+        # If --intersects was used, copy the file into the job directory
+        # and update the original args dictionary for future reruns.
+        # Note: using shutil module for this copy would be cleaner,
+        # but this method was chosen to avoid an additional import and
+        # because the intersects geojson files are quite small.
+        if args['intersects']:
+            intersects_copy_path = '%s/%s' % (job_dir,os.path.basename(args['intersects']))
+            with open(intersects_copy_path, 'w') as out_file:
+                with open(args['intersects'], 'r') as in_file:
+                    out_file.write(in_file.read())
+            
+            # Update original settings with new path to intersects file
+            unprocessed_args['intersects'] = intersects_copy_path
+    
         # Save the original input args to settings.json file, in case of future rerun
         settings_json = os.path.join(job_dir, 'settings.json')        
         with open(settings_json, 'w') as f: 
