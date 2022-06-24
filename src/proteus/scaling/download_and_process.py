@@ -91,7 +91,7 @@ def download_and_process_granules(job_dir, query_results_dict, args):
     # Limit the maximum number of simultaneous downloads and processes to
     # the number of available CPUs.
     # pool = ThreadPool(os.cpu_count())
-    pool = ThreadPool(40)
+    pool = ThreadPool(100)
 
     # Downloaded and process each granule independently
     if args['do_not_process']:

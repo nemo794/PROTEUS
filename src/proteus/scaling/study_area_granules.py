@@ -36,6 +36,10 @@ class StudyAreaGranules(object):
                 if i.properties['eo:cloud_cover'] > cloud_cover_max:
                     continue
 
+            # # Filter out tiles that are not our target tile
+            # if "T11SQA" not in str(i.id):
+            #     continue
+
             # We've cleared the initial filters, add item to self.granules_to_download
             self.granules_to_download[str(i.id)] = i
 

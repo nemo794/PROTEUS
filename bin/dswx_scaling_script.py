@@ -63,7 +63,13 @@ def main(args):
         # filter={'eo:cloud_cover': {'lte': '20'}}
         # filter=['eo:cloud_cover<=20']
         max_items = 1000
-        if args['bounding_box']:
+        if args['granule_ids']:
+            search = catalog.search(
+                ids=args['granule_ids'],
+                max_items=max_items,
+                method='POST'
+                )
+        elif args['bounding_box']:
             search = catalog.search(
                 collections=args['collections'],
                 max_items=max_items,

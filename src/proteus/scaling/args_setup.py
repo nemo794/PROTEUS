@@ -2,6 +2,7 @@ import os
 import argparse
 import warnings
 import json
+import re
 
 from proteus.scaling import utility
 
@@ -60,6 +61,20 @@ def parse_args():
     '''
     parser.add_argument('--intersects',
                         dest='intersects',
+                        type=str,
+                        default='',                        
+                        help=msg
+                        )
+
+    msg = '''
+    HLS 2.0 granule ID(s) to download and process. If multiple granule IDs,
+    they should be separated by a comma. If this argument is provided,
+    all other query filters will be ignored.
+    Ex: 'HLS.L30.T04WFT.2022076T214936.v2.0' or 
+    'HLS.L30.T04WFT.2022076T214936.v2.0,HLS.S30.T04WFT.2022076T220529.v2.0'
+    '''
+    parser.add_argument('--granule-ids',
+                        dest='granule_ids',
                         type=str,
                         default='',                        
                         help=msg
@@ -350,15 +365,19 @@ def verify_input_args(args):
     Those are direct input arguments to pystac-client; pystac-client will handle their verification.
 
     '''
+    # Job setup inputs
     assert isinstance(args['rerun'], bool), "rerun input must be Boolean."
     assert isinstance(args['do_not_download'], bool), "do_not_download input must be Boolean."
     assert isinstance(args['do_not_process'], bool), "do_not_process input must be Boolean."
     assert os.path.isdir(args['root_dir']), f"{args['root_dir']} is not a valid directory."
     assert args['job_name'], f"{args['job_name']} must be provided and not an empty string."
+
+    # Inputs needed for processing in PROTEUS' DSWx HLS
     assert os.path.exists(args['dem_file']), f"--dem_file was input as (or defaulted to) {args['dem_file']}, but that file does not exist."
     assert os.path.exists(args['landcover_file']), f"--landcover_file was input as (or defaulted to) {args['landcover_file']}, but that file does not exist."
     assert os.path.exists(args['worldcover_file']), f"--worldcover_file was input as (or defaulted to) {args['worldcover_file']}, but that file does not exist."
 
+    # Inputs needed for downloading specific bands for the HLS granules
     assert set(args['l30_v2_bands'].split(',')).issubset(['B09','VZA','SAA','B10','B03','B05','Fmask','B07','B02','SZA','B04','B06','B01','VAA','B11','browse','metadata']), \
         "months input must be a subset of 'B09,VZA,SAA,B10,B03,B05,Fmask,B07,B02,SZA,B04,B06,B01,VAA,B11,browse,metadata'."
     if not set(['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'Fmask']).issubset(args['l30_v2_bands'].split(',')):
@@ -377,6 +396,14 @@ def verify_input_args(args):
             "%s is missing and required for --rerun. If error persists, please remove --rerun option to begin scaling script from scratch." % os.path.join(study_area_dir, 'settings.json')
         assert os.path.exists(os.path.join(study_area_dir, 'query_results.pickle')), \
             "%s is missing and required for --rerun. If error persists, please remove --rerun option to begin scaling script from scratch." % os.path.join(study_area_dir, 'query_results.pickle')
+
+    # Granule ids were provided, so we can skip verifying the query filter inputs
+    elif args['granule_ids']:
+        # Each granule ID must match the pattern of HLS 2.0 naming convention,
+        # e.g. HLS.L30.T04WFT.2022076T214936.v2.0
+        pattern = re.compile(r'^HLS\.[LS]30\.T\d{2}[A-Z]{3}\.20\d{5}T\d{6}\.v2\.0$')
+        for gran in args['granule_ids'].split(','):
+            assert pattern.match(gran), "For --granule-id, the provided granule ID %s does not match HLS 2.0 specification." % gran
 
     # A new Study Area job is requested; check the inputs used for filtering
     else:
@@ -430,3 +457,9 @@ def reformat_args(args):
     # Ex: 'HLSL30.v2.0,HLSS30.v2.0' -->  ['HLSL30.v2.0', 'HLSS30.v2.0']
     if isinstance(args['collections'], str):
         args['collections'] = args['collections'].split(',')
+
+    # If granule IDs were provided, transform them from string into a list of strings.
+    # Ex: 'HLS.L30.T04WFT.2022076T214936.v2.0,HLS.S30.T04WFT.2022076T220529.v2.0'
+    #       --> ['HLS.L30.T04WFT.2022076T214936.v2.0', 'HLS.S30.T04WFT.2022076T220529.v2.0']
+    if args['granule_ids'] and isinstance(args['granule_ids'], str):
+        args['granule_ids'] = args['granule_ids'].split(',')
