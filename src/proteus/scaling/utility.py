@@ -1,6 +1,6 @@
 import os
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 import requests
 import warnings
 
@@ -107,3 +107,24 @@ def make_job_dir(root_dir, job_name):
         run_num += 1
     os.makedirs(job_dir)
     return job_dir
+
+
+def get_current_utc_time():
+    '''
+    Returns a string of the current UTC (GMT) time in the format: YYYYMMDDTHHMMSSZ
+    datetime.timetuple() returns a tuple with the following entries:
+        tm_year
+        tm_mon
+        tm_mday
+        tm_hour
+        tm_min
+        tm_sec
+        tm_wday
+        tm_yday
+        tm_isdst
+    '''
+
+    dt = datetime.now(timezone.utc).timetuple()
+
+    # pad values with zeros
+    return f'{dt.tm_year}{dt.tm_mon:02}{dt.tm_mday:02}T{dt.tm_hour:02}{dt.tm_min:02}{dt.tm_sec:02}Z'
