@@ -2382,11 +2382,11 @@ def _populate_dswx_metadata_datasets(dswx_metadata_dict, hls_dataset,
 
     # input datasets
     dswx_metadata_dict['HLS_DATASET'] = hls_dataset
-    dswx_metadata_dict['DEM_FILE'] = dem_file if dem_file else '(not provided)'
+    dswx_metadata_dict['DEM_FILE'] = os.path.basename(dem_file) if dem_file else '(not provided)'
     dswx_metadata_dict['LANDCOVER_FILE'] = \
-        landcover_file if landcover_file else '(not provided)'
+        os.path.basename(landcover_file) if landcover_file else '(not provided)'
     dswx_metadata_dict['WORLDCOVER_FILE'] = \
-        worldcover_file if worldcover_file \
+        os.path.basename(worldcover_file) if worldcover_file \
                                      else '(not provided)'
 
 
