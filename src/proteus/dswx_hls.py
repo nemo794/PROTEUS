@@ -107,8 +107,8 @@ collapse_wtr_classes_dict = {
 
 wtr_confidence_dict = {
     0: 0,
-    1: 95,
-    2: 50,
+    1: 85,
+    2: 70,
     9: 254,
     255: 255
 }
@@ -117,9 +117,9 @@ wtr_confidence_non_collapsed_dict = {
     0: 0,
     1: 95,
     2: 70,
-    3: 50,
-    4: 30,
-    9: 101,
+    3: 80,
+    4: 60,
+    9: 254,
     255: 255
 }
 
@@ -636,6 +636,7 @@ def create_landcover_mask(copernicus_landcover_file,
         length, width, scratch_dir, resample_algorithm='nearest',
         relocated_file=copernicus_landcover_reprojected_file,
         temp_files_list=temp_files_list)
+    temp_files_list.append(copernicus_landcover_reprojected_file)
 
     # Reproject ESA Worldcover 10m
     geotransform_up_3 = list(geotransform)
@@ -650,6 +651,7 @@ def create_landcover_mask(copernicus_landcover_file,
         resample_algorithm='nearest',
         relocated_file=worldcover_reprojected_up_3_file,
         temp_files_list=temp_files_list)
+    temp_files_list.append(worldcover_array_up_3)
 
     # Set multilooking parameters
     size_y = 3
@@ -1109,7 +1111,8 @@ def _get_binary_water_layer(interpreted_water_layer):
 
 def _get_confidence_layer(interpreted_layer,
         flag_collapse_wtr_classes = False):
-    """Generate confidence layer from interpreted water layer
+    """
+       Generate confidence layer from interpreted water layer
 
        Parameters
        ----------
@@ -1292,7 +1295,8 @@ def _compute_mask_and_filter_interpreted_layer(
 
 
 def _get_avg_sensing_time(sensing_time_str):
-    """Compute average sensing time
+    """
+       Compute average sensing time
 
        Parameters
        ----------
@@ -1573,7 +1577,8 @@ def _load_hls_product_v2(file_list, image_dict, offset_dict,
     return True
 
 def _get_binary_mask_ctable():
-    """Get binary mask RGB color table
+    """
+       Get binary mask RGB color table
 
        Returns
        -------
@@ -1613,7 +1618,8 @@ def _get_binary_water_ctable():
 
 
 def _get_confidence_layer_ctable():
-    """Get confidence layer RGB color table
+    """
+       Get confidence layer RGB color table
 
        Returns
        -------
@@ -1632,14 +1638,15 @@ def _get_confidence_layer_ctable():
                          255))
 
     # Gray - QA masked
-    confidence_layer_ctable.SetColorEntry(101, (127, 127, 127))
+    confidence_layer_ctable.SetColorEntry(254, (127, 127, 127))
 
     # Black - Fill value
     confidence_layer_ctable.SetColorEntry(255, (0, 0, 0, 255))
     return confidence_layer_ctable
 
 def _collapse_wtr_classes(interpreted_layer):
-    """Collapse interpreted layer classes onto final DSWx-HLS
+    """
+       Collapse interpreted layer classes onto final DSWx-HLS
         product WTR classes
 
        Parameters
@@ -2384,9 +2391,13 @@ def _populate_dswx_metadata_datasets(dswx_metadata_dict, hls_dataset,
 
 
 class Logger(object):
-    """Class to redirect stdout and stderr to the logger
+    """
+    Class to redirect stdout and stderr to the logger
     """
     def __init__(self, logger, level, prefix=''):
+       """
+       Class constructor
+       """
        self.logger = logger
        self.level = level
        self.prefix = prefix
@@ -2509,7 +2520,8 @@ def _compute_hillshade(dem_file, scratch_dir, sun_azimuth_angle,
 
 
 def _binary_repr(diagnostic_layer_decimal):
-    """Return the binary representation of the diagnostic layer in decimal
+    """
+    Return the binary representation of the diagnostic layer in decimal
     representation.
 
        Parameters
@@ -2916,7 +2928,7 @@ def generate_dswx_layers(input_list,
     for filename in temp_files_list:
         if not os.path.isfile(filename):
             continue
-        os.remove(filename)
+        # os.remove(filename)
         logger.info(f'    {filename}')
 
     logger.info('output files:')
