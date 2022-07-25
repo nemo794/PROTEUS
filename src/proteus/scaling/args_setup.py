@@ -40,6 +40,19 @@ def parse_args():
                         help='Name of the request'
                         )
 
+    ncpu = os.cpu_count()
+    msg = '''
+    Max number of CPUs to use for downloading/processing the granules.
+    Should be less than or equal to the number of available CPUs.
+    Defaults to the number of CPUs available on the system.
+    '''
+    parser.add_argument('--ncpu',
+                        dest='ncpu',
+                        type=int,
+                        default=ncpu,
+                        help=msg
+                        )
+
     msg = '''
     Area to observe. Format is W Longitude,S Latitude,E Longitude,N Latitude. 
     Coordinates are enclosed in quotes and separated by a space.
@@ -370,7 +383,11 @@ def verify_input_args(args):
     assert isinstance(args['do_not_download'], bool), "do_not_download input must be Boolean."
     assert isinstance(args['do_not_process'], bool), "do_not_process input must be Boolean."
     assert os.path.isdir(args['root_dir']), f"{args['root_dir']} is not a valid directory."
-    assert args['job_name'], f"{args['job_name']} must be provided and not an empty string."
+    assert args['job_name'], "--job_name must be provided and not an empty string."
+    assert args['ncpu'] > 0 and isinstance(args['ncpu'], int), "--ncpu must be greater than 0 and an integer"
+    if args['ncpu'] > os.cpu_count():
+        warnings.warn(f"The provided --ncpu was {args['ncpu']}, but there are only {os.cpu_count()} available CPUs. Reducing ncpu to {os.cpu_count()}.")
+        args['ncpu'] = os.cpu_count()
 
     # Inputs needed for processing in PROTEUS' DSWx HLS
     assert os.path.exists(args['dem_file']), f"--dem_file was input as (or defaulted to) {args['dem_file']}, but that file does not exist."

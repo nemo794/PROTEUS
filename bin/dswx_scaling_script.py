@@ -22,7 +22,6 @@ from proteus.scaling import args_setup
 # TODO: get "python setup.py install" working
 # TODO: get "pip install ." working
 # TODO: dswx_hls.py output/warning handling. Output goes to a log file, but warnings are sent to stderr.
-# TODO: Add input for number of CPUs for multiprocessing.
 
 ## Features on-deck:
 # TODO: Have TileIDs as inputs.
