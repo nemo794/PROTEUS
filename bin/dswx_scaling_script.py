@@ -27,7 +27,6 @@ from proteus.scaling import args_setup
 # TODO: Have TileIDs as inputs.
 # TODO: Cleanup the "months" filter; query desired months in a loop. Should make the queries smaller/faster.
 # TODO: Metadata downloading/searching can be done via threading
-# TODO: Have "intersects" be an alternative to bounding_box as input
 # TODO: allow user to choose the directory structure
 # TODO: Modularize the xml-checking to allow for filters in addition to SPATIAL_COVERAGE
 
