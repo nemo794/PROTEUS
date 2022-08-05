@@ -13,8 +13,7 @@ from proteus.scaling import utility
 class StudyAreaGranules(object):
 
     def __init__(self, item_collection, \
-                    cloud_cover_max=100, \
-                    months=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]):
+                    months=None):
         """
         item_collection is what is returned from a pystac-client .get_all_items() search query.
         """
@@ -24,18 +23,14 @@ class StudyAreaGranules(object):
 
         for i in item_collection:
             # Filter out items that are not during the requested months
-            if len(months) < 12:
+
+            if months is not None and len(months) < 12:
                 date = datetime.strptime(i.properties['datetime'], \
                         '%Y-%m-%dT%H:%M:%S.%fZ')  # 2021-01-09T19:03:23.352Z
                 if date.month not in months:
                     num_items_removed_for_select_months += 1
                     continue
             
-            # Filter out items that have too much cloud cover
-            if cloud_cover_max < 100:
-                if i.properties['eo:cloud_cover'] > cloud_cover_max:
-                    continue
-
             # # Filter out tiles that are not our target tile
             # if "T11SQA" not in str(i.id):
             #     continue
@@ -47,11 +42,88 @@ class StudyAreaGranules(object):
             print("Number of granules after filtering for only select months: ", \
                 len(item_collection) - num_items_removed_for_select_months)
 
-        if cloud_cover_max < 100:
-            print("Number of granules after filtering for cloud coverage: ", \
+        self.exit_if_no_downloads()
+
+    def filter_query_results(self, args):
+
+        # To minimize the amount of metadata .xml files to download and parse (very slow), 
+        # filter for "same day" before checking for spatial and cloud coverage.
+        # Will need to re-check for "same day" after each.
+        if args['same_day']:
+            self.filter_S30_L30_sameDay()
+            print("Number of granules after initial filter for S30 and L30 on Same Day: ", \
+                        len(self.granules_to_download))
+            self.exit_if_no_downloads()
+
+        for item_name in list(self.granules_to_download.keys()):
+
+            # Download the full metadata for this granule to memory
+            xml_data = requests.get(self.granules_to_download[item_name].assets['metadata'].href, \
+                                        allow_redirects=True)
+
+            # create element tree object
+            root = ET.fromstring(xml_data.content)
+        
+            for attribute in root.iter('AdditionalAttribute'):
+                attr_name = attribute.find('Name').text
+
+                # filter for spatial coverage
+                if attr_name == 'SPATIAL_COVERAGE' and args['spatial_coverage_min'] > 0:
+                    self.filter_spatial_coverage(attribute, item_name, args['spatial_coverage_min'])
+
+                # filter for cloud coverage
+                elif attr_name == 'CLOUD_COVERAGE' and args['cloud_cover_max'] < 100:
+                    self.filter_cloud_coverage(attribute, item_name, args['cloud_cover_max'])
+
+                # remove Landsat-9 granules
+                elif attr_name == 'LANDSAT_PRODUCT_ID' and ".L30." in item_name:
+                    self.filter_landsat9(attribute, item_name)
+
+            self.exit_if_no_downloads()
+
+        print("Number of granules after spatial coverage, cloud coverage, and/or Landsat-9 filters: ", \
                 len(self.granules_to_download))
 
-        self.exit_if_no_downloads()
+        # ensure same-day criteria is still met
+        if args['same_day']:
+            self.filter_S30_L30_sameDay()
+            print("Number of granules after re-filtering for S30 and L30 on Same Day: ", \
+                    len(self.granules_to_download))
+            self.exit_if_no_downloads()
+
+
+    def filter_spatial_coverage(self, attribute, item_name, spatial_coverage_min):
+        spatial_coverage = int(attribute.find('Values').find('Value').text)
+
+        # If spatial coverage is too low, then
+        # remove this granuale from the items to be downloaded
+        if spatial_coverage < spatial_coverage_min:
+            del self.granules_to_download[item_name]
+
+
+    def filter_cloud_coverage(self, attribute, item_name, cloud_cover_max):
+        cloud_coverage = int(attribute.find('Values').find('Value').text)
+
+        # If cloud coverage is too high, then
+        # remove this granuale from the items to be downloaded
+        if cloud_coverage > cloud_cover_max:
+            del self.granules_to_download[item_name]
+
+
+    # Filter to remove Landsat 9 granules
+    # Landsat 9 granules from Jan 2022 will be included in HLS data.
+    # DSWx-HLS only supports Landsat-8 granules.
+    def filter_landsat9(self, attribute, item_name):
+        prod_id = attribute.find('Values').find('Value').text
+
+        # Keep Landsat-8 granules
+        if prod_id.startswith('LC08'):
+            return
+        # Remove Landsat 9 granules
+        elif prod_id.startswith('LC09'):
+            del self.granules_to_download[item_name]
+        else:
+            raise Exception("A granule that was not Landsat 8 nor Landsat 9 was found.")
 
 
     # Filter for granules+dates with coverage by both S30 and L30
@@ -87,39 +159,6 @@ class StudyAreaGranules(object):
 
         for item in unmatched_granules.keys():
             del self.granules_to_download[unmatched_granules[item]]
-
-        print("Number of granules after filtering for S30 and L30 on Same Day: ", len(self.granules_to_download))
-        self.exit_if_no_downloads()
-
-
-    def filter_spatial_coverage(self, spatial_coverage_min):
-        for item_name in list(self.granules_to_download.keys()):
-
-            # Download the full metadata for this granule to memory
-            xml_data = requests.get(self.granules_to_download[item_name].assets['metadata'].href, allow_redirects=True)
-
-            # create element tree object
-            root = ET.fromstring(xml_data.content)
-        
-            # get spatial_coverage value
-            spatial_coverage = 101  # max value is 100
-            for attribute in root.iter('AdditionalAttribute'):
-                if 'SPATIAL_COVERAGE' == attribute.find('Name').text:
-                    spatial_coverage = int(attribute.find('Values').find('Value').text)
-                    break
-
-            if spatial_coverage > 100:
-                msg = "The metadata .xml for Granule %s did not include SPATIAL_COVERAGE." % item_name
-                warnings.warn(msg)
-
-            # If spatial coverage is too low, then
-            # remove this granuale from the items to be downloaded
-            # If SPATIAL_COVERAGE value was not found, we will not remove the Granule from self.granules_to_download
-            if spatial_coverage < spatial_coverage_min:
-                del self.granules_to_download[item_name]
-
-        print("Number of granules after filtering for spatial coverage: ", len(self.granules_to_download))
-        self.exit_if_no_downloads()
 
 
     def exit_if_no_downloads(self):

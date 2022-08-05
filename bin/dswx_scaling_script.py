@@ -106,22 +106,12 @@ def main(args):
             print("WARNING: STAC Server likely has more than %s results, but only %s were returned." % (max_items,max_items))
 
         ## Create an object to hold the desired granules to download.
-        # For efficiency of computation, filtering for cloud_cover_max and months
-        # occurs during this step.
+        # For efficiency of computation, filtering for months occurs during this step.
         study_area = study_area_granules.StudyAreaGranules(item_collection, \
-                                            args['cloud_cover_max'], args['months'])
+                                            args['months'])
 
-        # To minimize the amount of metadata .xml files to download and parse (very slow), 
-        # filter for "same day" before checking for spatial coverage.
-        # Will need to re-check for "same day" after.
-        if args['same_day']:
-            study_area.filter_S30_L30_sameDay()
-
-        if args['spatial_coverage_min'] > 0:
-            study_area.filter_spatial_coverage(args['spatial_coverage_min'])
-
-            if args['same_day']:
-                study_area.filter_S30_L30_sameDay()
+        ## Filter the query results
+        study_area.filter_query_results(args)
 
         ## Save results from query to disk.
 

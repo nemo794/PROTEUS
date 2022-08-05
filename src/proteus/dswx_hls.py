@@ -1308,6 +1308,8 @@ def _get_avg_sensing_time(sensing_time_str):
        average_sensing_time_string: str
               Average sensing time
     """
+    return sensing_time_str
+
     sensing_time_list = [d.strip() for d in
                          sensing_time_str.split(';')]
 
@@ -2249,20 +2251,18 @@ def parse_runconfig_file(user_runconfig_file = None, args = None):
     if 'dem_file' not in ancillary_ds_group:
         dem_file = None
     else:
-        dem_file = os.path.basename(
-            ancillary_ds_group['dem_file'])
+        dem_file = ancillary_ds_group['dem_file']
 
     if 'landcover_file' not in ancillary_ds_group:
         landcover_file = None
     else:
-        landcover_file = os.path.basename(
-            ancillary_ds_group['landcover_file'])
+        landcover_file = ancillary_ds_group['landcover_file']
 
     if 'worldcover_file' not in ancillary_ds_group:
         worldcover_file = None
     else:
-        worldcover_file = os.path.basename(
-            ancillary_ds_group['worldcover_file'])
+        worldcover_file = ancillary_ds_group[
+            'worldcover_file']
 
     scratch_dir = product_path_group['scratch_path']
     output_directory = product_path_group['output_dir']

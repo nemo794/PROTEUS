@@ -327,16 +327,16 @@ def build_product_id_str(granule_dir_path, granule_id, list_of_urls):
         elif metadata['SPACECRAFT_NAME'] == 'Sentinel-2B':
             product_id += "_S2B"
         else:
-            raise Exception(f"Granule ID {granule_id}'s metadata could not be parsed to determine the Satellite.")
+            warnings.warn(f"Granule ID {granule_id}'s metadata could not be parsed to determine the Satellite.")
 
     elif satellite == "L30":
         # Landsat metadata has a SPACECRAFT_NAME attribute
         if metadata['LANDSAT_PRODUCT_ID'].split('_')[0] == 'LC08':
             product_id += "_L8"
         else:
-            raise Exception(f"Granule ID {granule_id}'s metadata could not be parsed to determine the Satellite.")
+            warnings.warn(f"Granule ID {granule_id}'s metadata could not be parsed to determine the Satellite.")
     else:
-        raise Exception(f"Granule ID {granule_id}'s metadata could not be parsed to determine the Satellite.")
+        warnings.warn(f"Granule ID {granule_id}'s metadata could not be parsed to determine the Satellite.")
 
     # Append the pixel spacing in meters
     product_id += "_30"
@@ -344,13 +344,25 @@ def build_product_id_str(granule_dir_path, granule_id, list_of_urls):
     # Append the TileID
     product_id += "_" + tileID
 
-    # Get SceneDateTime
-    # Note that the Granule ID's Date-Time is the time of the start of the acquisition,
-    # not the scene center time.
-    sceneDateTime = dswx_hls._get_avg_sensing_time(metadata['SENSING_TIME'])
+    ## After determining that the metadata does not contain Scene Center information
+    # for both Landsat and Sentinel, instead we'll just copy over the time from the
+    # input HLS granule's filename.
 
-    # Append the SceneDateTime
-    product_id += "_" + sceneDateTime
+    # # Get SceneDateTime
+    # # Note that the Granule ID's Date-Time is the time of the start of the acquisition,
+    # # not the scene center time.
+    # sceneDateTime = dswx_hls._get_avg_sensing_time(metadata['SENSING_TIME'])
+
+    # # Append the SceneDateTime
+    # product_id += "_" + sceneDateTime
+
+    # Get HHMMSS
+    # Example Granule ID: 'HLS.L30.T11TLH.2020160T183142.v2.0'
+    hhmmss = granule_id.split('.')[3]
+    hhmmss = hhmmss.split('T')[1]
+
+    # Append the AcquisitionDateTime
+    product_id += "_" + date + "T" + hhmmss + "Z"
 
     # Append the ProductGenerationDateTime
     product_id += "_" + utility.get_current_utc_time()
