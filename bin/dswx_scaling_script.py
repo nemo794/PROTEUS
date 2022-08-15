@@ -11,8 +11,6 @@ import warnings
 import time
 import copy
 
-from pystac_client import Client  # conda install -c conda-forge pystac-client
-
 from proteus.scaling import utility
 from proteus.scaling import study_area_granules
 from proteus.scaling import download_and_process as dap
@@ -21,97 +19,42 @@ from proteus.scaling import args_setup
 ## Must-do's
 # TODO: get "python setup.py install" working
 # TODO: get "pip install ." working
-# TODO: dswx_hls.py output/warning handling. Output goes to a log file, but warnings are sent to stderr.
 
 ## Features on-deck:
-# TODO: Have TileIDs as inputs.
-# TODO: Cleanup the "months" filter; query desired months in a loop. Should make the queries smaller/faster.
-# TODO: Metadata downloading/searching can be done via threading
 # TODO: allow user to choose the directory structure
-# TODO: Modularize the xml-checking to allow for filters in addition to SPATIAL_COVERAGE
 
 
 def main(args):
 
-    # Verify
+    # Verify input args
     args_setup.verify_input_args(args)
 
-    # If not --rerun, make a copy of the original input arguments. (It is a small dictionary.)
-    # Later, once the script has successfully completed the query and filtering,
-    # a new directory for storing outputs will be created, and this copy will be stored there.
     if not args['rerun']:
-        unprocessed_args = copy.deepcopy(args)
 
-    # Reformat args for use by this script
-    args_setup.reformat_args(args)
-
-    if not args['rerun']:
-        ## Query NASA's STAC-CMR
-        print("Beginning query of NASA's STAC-CMR for available granules in date_range and study area...")
-        catalog = Client.open(args['stac_url_lpcloud'])
-
-        # Setup the search query. References:
-        # pystac-client API for search: https://github.com/stac-utils/pystac-client/blob/7bedea4c0b9a181656d4a891ccf6c02361da8415/pystac_client/item_search.py#L87
-        # General STAC API: https://github.com/radiantearth/stac-api-spec/tree/master/item-search
-
-        # Future work: Some STAC Catalogs allow direct querying of eo:cloud_cover, but this fails for HLS
-        # See: https://pystac-client.readthedocs.io/en/latest/usage.html#query-filter
-        # See: https://github.com/radiantearth/stac-api-spec/tree/master/fragments/query
-        # If querying becomes functional in the future, then uncomment one of the following lines:
-        # filter={'eo:cloud_cover': {'lte': '20'}}
-        # filter=['eo:cloud_cover<=20']
-        max_items = 1000
-        if args['granule_ids']:
-            search = catalog.search(
-                ids=args['granule_ids'],
-                max_items=max_items,
-                method='POST'
-                )
-        elif args['bounding_box']:
-            search = catalog.search(
-                collections=args['collections'],
-                max_items=max_items,
-                bbox=args['bounding_box'],
-                datetime=args['date_range'],
-                method='POST'
-                )
-        # Use the intersects input
-        else:
-            with open(args['intersects'], 'r') as f:
-                roi = json.load(f)
-            search = catalog.search(
-                collections=args['collections'],
-                max_items=max_items,
-                intersects=roi,
-                datetime=args['date_range'],
-                method='POST'
-                )
-
-        for attempt in range(1,4):
-            try:
-                item_collection = search.get_all_items()
-                break
-            except Exception as e:
-                if attempt < 3:
-                    print("Exception caught: ", e)
-                    warnings.warn:("(Attempt %d of 3) Could not connect to STAC server. Will sleep for 5 secs and try again.", attempt)
-                    time.sleep(5)
-                else:
-                    print("Exception caught: ", e)
-                    warnings.warn:("(Attempt %d of 3.) Could not connect to STAC server.  Exiting program.", attempt)
-                    sys.exit()
-
-        print("Number of granules in initial query of STAC (entire date_range): ", len(item_collection))
-        if len(item_collection) == max_items:
-            print("WARNING: STAC Server likely has more than %s results, but only %s were returned." % (max_items,max_items))
+        # Reformat the args for this class
+        prepped_args = args_setup.reformat_args(args)
 
         ## Create an object to hold the desired granules to download.
-        # For efficiency of computation, filtering for months occurs during this step.
-        study_area = study_area_granules.StudyAreaGranules(item_collection, \
-                                            args['months'])
+        study_area = study_area_granules.StudyAreaQuery(
+                            collections = prepped_args['collections'], \
+                            stac_url_lpcloud = prepped_args['stac_url_lpcloud'], \
+                            bounding_box = prepped_args['bounding_box'], \
+                            intersects = prepped_args['intersects'], \
+                            granule_ids = prepped_args['granule_ids'], \
+                            date_range = prepped_args['date_range'], \
+                            tile_id = prepped_args['tile_id'], \
+                            months = prepped_args['months'], \
+                            spatial_coverage_min = prepped_args['spatial_coverage_min'], \
+                            cloud_cover_max = prepped_args['cloud_cover_max'], \
+                            same_day = prepped_args['same_day'], \
+                            verbose = prepped_args['verbose'], \
+                            l30_v2_bands = prepped_args['l30_v2_bands'], \
+                            s30_v2_bands = prepped_args['s30_v2_bands']
+
+                            )
 
         ## Filter the query results
-        study_area.filter_query_results(args)
+        study_area.query_STAC_and_filter_results()
 
         ## Save results from query to disk.
 
@@ -130,29 +73,16 @@ def main(args):
                     out_file.write(in_file.read())
             
             # Update original settings with new path to intersects file
-            unprocessed_args['intersects'] = intersects_copy_path
+            args['intersects'] = intersects_copy_path
     
         # Save the original input args to settings.json file, in case of future rerun
         settings_json = os.path.join(job_dir, 'settings.json')        
         with open(settings_json, 'w') as f: 
-            f.write(json.dumps(unprocessed_args, indent=4))
+            f.write(json.dumps(args, indent=4))
 
-        study_area.save_all_granule_names_to_file(job_dir)
-        if args['verbose']:
-            print(f'List of filtered granule names saved to {job_dir}/dswx_hls_filtered_granules.txt.')
+        # Save the query results to output files
+        study_area.save_query_results_to_output_files(job_dir)
 
-        study_area.save_all_urls_to_file(job_dir, args['l30_v2_bands'], args['s30_v2_bands'])
-        if args['verbose']:
-            print(f'List of urls saved to {job_dir}/dswx_hls_filtered_urls.txt.')
-
-        # Pickle the dictionary containing the final results of the query + filtering.
-        # This output will be used for --rerun requests in the future
-        study_area.save_query_results_to_file(job_dir)
-        if args['verbose']:
-            print(f'Copy of query results dictionary saved to {job_dir}/query_results.pickle. This will be required to use --rerun option in the future.')
-
-        if not args['verbose']:
-            print(f'Query results saved in {job_dir}.')
 
     ## Download granules
 
@@ -175,7 +105,7 @@ def main(args):
     dap.download_and_process_granules( \
                                 job_dir=job_dir, \
                                 query_results_dict=query_results, \
-                                args=args)
+                                args=prepped_args)
 
 
 if __name__ == "__main__":

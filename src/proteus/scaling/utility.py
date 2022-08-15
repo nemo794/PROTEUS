@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 import requests
 import warnings
 
+import mgrs
+import pyproj
 from osgeo import gdal
 
 def remove_last_char(f):
@@ -128,3 +130,48 @@ def get_current_utc_time():
 
     # pad values with zeros
     return f'{dt.tm_year}{dt.tm_mon:02}{dt.tm_mday:02}T{dt.tm_hour:02}{dt.tm_min:02}{dt.tm_sec:02}Z'
+
+
+def mgrs_to_lat_lon_bounding_box(mgrs_tile_id):
+    """
+    Get the bounding box lat/lon coordinates of an MGRS Tile.
+
+    Parameters
+    ----------
+    mgrs_tile_id: str
+        ID of a MGRS tile, e.g. '15SXR' or '20KNC'
+
+    Returns
+    -------
+    (lon_min, lat_min, lon_max, lat_max) : tuple of floats
+        A tuple containing the minimum and maximum latitudes and longitudes
+        (in degrees) of the bounding box around the MGRS tile `mgrs_tile_id`
+        These define the lower-left and upper-right lon/lat coordinates.
+    """
+
+    # Geographic (lat/lon) coordinates are not linear. But, UTM coordinates
+    # are rectangular and linear. So, use UTM coordinates to calculate the
+    # outermost bounding-box coordinates for given mgrs_tile_id.
+
+    # Get the Lower-Left UTM Coordinates and properties of the MGRS Tile
+    mgrs_obj = mgrs.MGRS()
+    utm_zone, is_southern, x_utm, y_utm = mgrs_obj.MGRSToUTM(mgrs_tile_id)
+    is_southern = is_southern == 'S'  # Otherwise, 'N' for northern
+
+    # Length of each side of a MGRS tile is 109.8km
+    mgrs_len = 109.8 * 1000
+
+    # Define the 4 corners of the MGRS tile in UTM and convert to lat/lon (in deg)
+    p = pyproj.Proj(proj='utm', zone=utm_zone, south=is_southern,
+                    ellps='WGS84', preserve_units=False)
+
+    lon = [0] * 4
+    lat = [0] * 4
+    lon[0], lat[0] = p(x_utm, y_utm, inverse=True)
+    lon[1], lat[1] = p(x_utm, y_utm + mgrs_len, inverse=True)
+    lon[2], lat[2] = p(x_utm + mgrs_len, y_utm, inverse=True)
+    lon[3], lat[3] = p(x_utm + mgrs_len, y_utm + mgrs_len, inverse=True)
+
+    # Return the outermost lat and lon values
+    # Order: (lon_min, lat_min, lon_max, lat_max)
+    return min(lon), min(lat), max(lon), max(lat)

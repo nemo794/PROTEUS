@@ -3,6 +3,7 @@ import argparse
 import warnings
 import json
 import re
+import copy
 
 from proteus.scaling import utility
 
@@ -120,6 +121,19 @@ def parse_args():
                         dest='months',
                         type=str,
                         default="Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
+                        help=msg
+                        )
+
+    msg = '''
+    MGRS Tile ID to download and process. Only one tile ID is supported.
+    Providing a Tile ID will ignore --bounding_box and --intersects arguments.
+    Ok to prepend a 'T' to the tile ID; it should match the pattern
+    'NNLLL' or 'TNNLLL', e.g. '16WFT' or 'T16WFT'.
+    '''
+    parser.add_argument('--tile-id',
+                        dest='tile_id',
+                        type=str,
+                        default='',                        
                         help=msg
                         )
 
@@ -415,7 +429,7 @@ def verify_input_args(args):
             "%s is missing and required for --rerun. If error persists, please remove --rerun option to begin scaling script from scratch." % os.path.join(study_area_dir, 'query_results.pickle')
 
     # Granule ids were provided, so we can skip verifying the query filter inputs
-    elif args['granule_ids']:
+    if args['granule_ids']:
         # Each granule ID must match the pattern of HLS 2.0 naming convention,
         # e.g. HLS.L30.T04WFT.2022076T214936.v2.0
         pattern = re.compile(r'^HLS\.[LS]30\.T\d{2}[A-Z]{3}\.20\d{5}T\d{6}\.v2\.0$')
@@ -426,10 +440,19 @@ def verify_input_args(args):
     else:
         assert args['date_range'], "A date_range must be provided and not an empty string."
 
-        # Must have provide either a bounding box or an intersects input, but not both
-        assert bool(args['bounding_box']) ^ bool(args['intersects']), "Either a bounding box or intersects argument must be provided."
-        if args['intersects']:
-            assert os.path.exists(args['intersects']), "--intersects argument should be a path to a GEOJSON file."
+        # make sure tile-id matches the provided pattern
+        if args['tile_id']:
+            # The tile ID must match the pattern of MGRS tiles. Ok if it has a 'T' at the beginning.,
+            # e.g. '04WFT' or 'T04WFT' are ok
+            pattern1 = re.compile(r'\d{2}[A-Z]{3}')
+            pattern2 = re.compile(r'T\d{2}[A-Z]{3}')
+            assert pattern1.match(args['tile_id']) or pattern2.match(args['tile_id']), \
+                f"For --tile-id, the provided MGRS Tile ID {tile} does not match the pattern 'NNLLL' nor 'TNNLLL'."
+        else:
+            # Must have provide either a bounding box or an intersects input, but not both
+            assert bool(args['bounding_box']) ^ bool(args['intersects']), "Either a bounding box or intersects argument must be provided."
+            if args['intersects']:
+                assert os.path.exists(args['intersects']), "--intersects argument should be a path to a GEOJSON file."
 
         assert 0 <= args['cloud_cover_max'] and args['cloud_cover_max'] <= 100, \
             "cloud_cover_max input must be between 0 and 100, inclusive."
@@ -444,39 +467,52 @@ def verify_input_args(args):
             'Only HLSL30.v2.0 and/or HLSS30.v2.0 currently supported for --collections input.'
 
 
+
 def reformat_args(args):
     '''
     This function transforms the parsed input arguments into the
     format needed for hls_scaling_script.py.
     '''
+    args_clean = copy.deepcopy(args)
+
+    # If a tile ID was provided, get its bounding box.
+    if args['tile_id'] and isinstance(args['tile_id'], str):
+        base_tile_id = args['tile_id'].upper().lstrip('T')
+        bbox = mgrs_to_lat_lon_bounding_box(base_tile_id)
+
+        # Save Bounding Box to args
+        args_clean['bounding_box'] = list(bbox)
+
     # Transform bounding_box from string into a list of numbers.
     # Ex: '-120 43 -118 48'  -->  [-120, 43, -118, 48]
     if isinstance(args['bounding_box'], str):
-        args['bounding_box'] = [float(i) for i in args['bounding_box'].split()]
+        args_clean['bounding_box'] = [float(i) for i in args['bounding_box'].split()]
 
     # Transform months from string into a list of numbers.
     # Ex: 'Jun,Jul,Aug'  -->  [6, 7, 8]
     if isinstance(args['months'], str):
-        args['months'] = args['months'].split(',')
-        args['months'] = [utility.month_to_num(month) for month in args['months']]
+        args_clean['months'] = args['months'].split(',')
+        args_clean['months'] = [utility.month_to_num(month) for month in args_clean['months']]
 
     # Transform l30 bands from string into a list of strings.
     # Ex: 'B02,B03,B04,B05,B06,B07,Fmask'  -->  ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'Fmask']
     if isinstance(args['l30_v2_bands'], str):
-        args['l30_v2_bands'] = args['l30_v2_bands'].split(',')
+        args_clean['l30_v2_bands'] = args['l30_v2_bands'].split(',')
 
     # Transform s30 bands from string into a list of strings.
     # Ex: 'B02,B03,B04,B8A,B11,B12,Fmask'  -->  ['B02', 'B03', 'B04', 'B8A', 'B11', 'B12', 'Fmask']
     if isinstance(args['s30_v2_bands'], str):
-        args['s30_v2_bands'] = args['s30_v2_bands'].split(',')
+        args_clean['s30_v2_bands'] = args['s30_v2_bands'].split(',')
 
     # Transform collections from string into a list of strings.
     # Ex: 'HLSL30.v2.0,HLSS30.v2.0' -->  ['HLSL30.v2.0', 'HLSS30.v2.0']
     if isinstance(args['collections'], str):
-        args['collections'] = args['collections'].split(',')
+        args_clean['collections'] = args['collections'].split(',')
 
     # If granule IDs were provided, transform them from string into a list of strings.
     # Ex: 'HLS.L30.T04WFT.2022076T214936.v2.0,HLS.S30.T04WFT.2022076T220529.v2.0'
     #       --> ['HLS.L30.T04WFT.2022076T214936.v2.0', 'HLS.S30.T04WFT.2022076T220529.v2.0']
     if args['granule_ids'] and isinstance(args['granule_ids'], str):
-        args['granule_ids'] = args['granule_ids'].split(',')
+        args_clean['granule_ids'] = args['granule_ids'].split(',')
+
+    return args_clean
