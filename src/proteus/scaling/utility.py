@@ -61,11 +61,20 @@ def download2file(url, file_name):
     '''
 
     # Surround with try/catch so that a failed request does not kill the entire scaling script
-    try:
-        data = requests.get(url, allow_redirects=True)
-    except Exception as e:
-        warnings.warn(e)
-        return False
+    for attempt in range(1,4):
+        try:
+            data = requests.get(url, allow_redirects=True)
+            break
+        except Exception as e:
+            if attempt < 3:
+                print("Exception caught: ", e)
+                print("(Attempt %d of 3) Could not connect to server. Will sleep for 5 secs and try again.", attempt)
+                print("Problematic url: ", url)
+                time.sleep(5)
+            else:
+                print("Exception caught: ", e)
+                print("(Attempt %d of 3.) Could not connect to server.  Exiting program.", attempt)
+            return False
 
     if data:
         open(file_name, 'wb').write(data.content)

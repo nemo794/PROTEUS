@@ -449,8 +449,9 @@ def verify_input_args(args):
             assert pattern1.match(args['tile_id']) or pattern2.match(args['tile_id']), \
                 f"For --tile-id, the provided MGRS Tile ID {tile} does not match the pattern 'NNLLL' nor 'TNNLLL'."
         else:
-            # Must have provide either a bounding box or an intersects input, but not both
-            assert bool(args['bounding_box']) ^ bool(args['intersects']), "Either a bounding box or intersects argument must be provided."
+            # Must have provide either a bounding box, intersects input, or tile-id, but not more than one
+            msg = "Either a bounding box, tile id, or intersects argument must be provided, but not more than one."
+            assert bool(args['bounding_box']) ^ bool(args['intersects']) ^ bool(args['tile_id']), msg
             if args['intersects']:
                 assert os.path.exists(args['intersects']), "--intersects argument should be a path to a GEOJSON file."
 
@@ -478,14 +479,14 @@ def reformat_args(args):
     # If a tile ID was provided, get its bounding box.
     if args['tile_id'] and isinstance(args['tile_id'], str):
         base_tile_id = args['tile_id'].upper().lstrip('T')
-        bbox = mgrs_to_lat_lon_bounding_box(base_tile_id)
+        bbox = utility.mgrs_to_lat_lon_bounding_box(base_tile_id)
 
         # Save Bounding Box to args
         args_clean['bounding_box'] = list(bbox)
 
-    # Transform bounding_box from string into a list of numbers.
+    # If bounding_box is a non-empty string, transform it from string into a list of numbers.
     # Ex: '-120 43 -118 48'  -->  [-120, 43, -118, 48]
-    if isinstance(args['bounding_box'], str):
+    if args['bounding_box'] and isinstance(args['bounding_box'], str):
         args_clean['bounding_box'] = [float(i) for i in args['bounding_box'].split()]
 
     # Transform months from string into a list of numbers.

@@ -76,6 +76,10 @@ def download_and_process_granules(job_dir, query_results_dict, args):
             sensor, tileID, date = utility.get_sensor_tileID_date(granule_id)
             granule_dir = create_dir_structure(job_dir,[date,tileID,sensor])
 
+            ### TEMP FOR lower48 same day request!
+            # granule_dir = create_dir_structure(job_dir,[sensor])
+            ### end tmp code
+
             list_of_granule_dirs.append(granule_dir)
 
             f.write("%s\n" % granule_dir)

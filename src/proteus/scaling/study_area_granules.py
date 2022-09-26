@@ -6,6 +6,7 @@ import pickle
 import warnings
 import json
 import time
+import random
 
 import xml.etree.ElementTree as ET
 from pystac_client import Client  # conda install -c conda-forge pystac-client
@@ -19,7 +20,6 @@ class StudyAreaQuery(object):
         This class  
 
         """
-
         # Parse input kwargs
         self.collections = kwargs['collections']
         self.stac_url_lpcloud = kwargs['stac_url_lpcloud']
@@ -63,12 +63,13 @@ class StudyAreaQuery(object):
         # pystac-client API for search: https://github.com/stac-utils/pystac-client/blob/7bedea4c0b9a181656d4a891ccf6c02361da8415/pystac_client/item_search.py#L87
         # General STAC API: https://github.com/radiantearth/stac-api-spec/tree/master/item-search
 
-        # Future work: Some STAC Catalogs allow direct querying of eo:cloud_cover, but this fails for HLS
+        # Future work: STAC Catalog should allow direct querying of eo:cloud_cover, but this fails
         # See: https://pystac-client.readthedocs.io/en/latest/usage.html#query-filter
         # See: https://github.com/radiantearth/stac-api-spec/tree/master/fragments/query
         # If querying becomes functional in the future, then add one of the following lines to the search:
         # filter={'eo:cloud_cover': {'lte': '20'}}
         # filter=['eo:cloud_cover<=20']
+        # GIT ISSUE: https://github.com/nasa/cmr-stac/issues/206
         max_items = 5000
         if self.granule_ids:
             search = catalog.search(
@@ -84,7 +85,7 @@ class StudyAreaQuery(object):
                 datetime=self.date_range,
                 method='POST'
                 )
-        # Use the intersects input
+        # Use the intersects input for reading the geojson file
         else:
             with open(self.intersects, 'r') as f:
                 roi = json.load(f)
@@ -126,6 +127,14 @@ class StudyAreaQuery(object):
         num_items_removed_for_tile_id = 0
         
         for i in item_collection:
+
+            # TODO: Re-Add cloud-cover filter at this point in the code.
+            # Git Issue: https://github.com/nasa/cmr-stac/issues/234
+            # To reduce the amount of xml metadata that needs to be 
+            # downloaded/parsed in filter_query_dict(), earlier iterations
+            # of this code filtered for cloud cover during this step. However,
+            # this feature broke, and the functionality had to be relocated.
+
             # Filter out tiles that are not our target tile
             if self.tile_id:
                 if self.tile_id not in str(i.id):
@@ -165,6 +174,7 @@ class StudyAreaQuery(object):
                         len(self.granules_to_download))
             self.exit_if_no_downloads()
 
+        orig_len = len(self.granules_to_download)
         num_removed_landsat9 = 0
         num_removed_spatial = 0
         num_removed_cloud = 0
@@ -179,14 +189,13 @@ class StudyAreaQuery(object):
 
             for attribute in root.iter('AdditionalAttribute'):
                 attr_name = attribute.find('Name').text
-                cur_len = len(self.granules_to_download)
 
                 # In HLS Metadata .xml files, the order these fields appear is:
                 #   LANDSAT_PRODUCT_ID (optional), CLOUD_COVERAGE, SPATIAL_COVERAGE
                 # So, filter in that order so that the counters are accurate.
 
                 # remove Landsat-9 granules
-                elif attr_name == 'LANDSAT_PRODUCT_ID' and ".L30." in item_name:
+                if attr_name == 'LANDSAT_PRODUCT_ID' and ".L30." in item_name:
                     if not self.no_landsat9_req_ok(attribute, item_name):
                         num_removed_landsat9 += 1
                         break
@@ -198,7 +207,7 @@ class StudyAreaQuery(object):
                         break
 
                 # filter for spatial coverage
-                if attr_name == 'SPATIAL_COVERAGE' and self.spatial_coverage_min > 0:
+                elif attr_name == 'SPATIAL_COVERAGE' and self.spatial_coverage_min > 0:
                     if not self.spatial_coverage_req_ok(attribute, item_name):
                         num_removed_spatial += 1
                         break
@@ -207,24 +216,30 @@ class StudyAreaQuery(object):
 
         # Display the effects of the filters
         print("Number of granules after removing any Landsat-9 granules: ", 
-                len(self.granules_to_download) \
+                orig_len \
                 - num_removed_landsat9
                 )
 
         if self.cloud_cover_max < 100:
             print("Number of granules after filtering for cloud coverage: ", 
-                    len(self.granules_to_download) \
+                    orig_len \
                     - num_removed_landsat9 \
                     - num_removed_cloud
                     )
 
         if self.spatial_coverage_min > 0:
             print("Number of granules after filtering for spatial coverage: ", 
-                    len(self.granules_to_download) \
+                    orig_len \
                     - num_removed_landsat9 \
                     - num_removed_cloud \
                     - num_removed_spatial
                     )
+        
+        # sanity check
+        assert len(self.granules_to_download) == orig_len \
+                                                - num_removed_landsat9 \
+                                                - num_removed_cloud \
+                                                - num_removed_spatial
 
         # ensure same-day criteria is still met
         if self.same_day:
@@ -232,6 +247,11 @@ class StudyAreaQuery(object):
             print("Number of granules after re-filtering for S30 and L30 on Same Day: ", \
                     len(self.granules_to_download))
             self.exit_if_no_downloads()
+
+        # TEST CODE
+        # self.filter_for_single_S30_L30_sameDay_pair()
+        # print("Number of granules after downsampling to only one S30-L30 pair on Same Day: ", \
+                # len(self.granules_to_download))
 
 
     def spatial_coverage_req_ok(self, attribute, item_name):
@@ -358,4 +378,37 @@ class StudyAreaQuery(object):
     def save_query_results_to_file(self, job_dir):
         with open(os.path.join(job_dir,"query_results.pickle"), "wb") as f:
             pickle.dump(self.granules_to_download, f)
+
+
+    def filter_for_single_S30_L30_sameDay_pair(self):
+        """
+        Filter for the first located L30-S30 pair. Selection of the "pair"
+        is non-deterministic.
+
+        """
+        # Get random key from dict
+        rand_gran_id = random.choice(list(self.granules_to_download.keys()))
+
+        # Get the tileID and date. Ex: 'HLS.L30.T11TLH.2020160T183142.v2.0'
+        id_split = rand_gran_id.split('.')
+
+        # Pull out the TddAAA.YYYYDDD from the granule ID. This should be
+        # the same for a pair.
+        tileID_date = f"{id_split[2]}.{id_split[3][:7]}"
+
+        # Find the pair
+        match_dict = {}
+        for match_gran_id in self.granules_to_download.keys():
+            if tileID_date in match_gran_id \
+                and match_gran_id is not rand_gran_id:
+
+                # Add just-located match's granule
+                match_dict[rand_gran_id] = self.granules_to_download[rand_gran_id]
+                match_dict[match_gran_id] = self.granules_to_download[match_gran_id]
+                
+                # Replace granules_to_download dict with this new one
+                self.granules_to_download = match_dict
+
+        if len(match_dict.keys()) == 0:
+            print("WARNING: No pairs were found. granules_to_download dict is unchanged. Rerun with --same-day flag.")
 

@@ -16,13 +16,6 @@ from proteus.scaling import study_area_granules
 from proteus.scaling import download_and_process as dap
 from proteus.scaling import args_setup
 
-## Must-do's
-# TODO: get "python setup.py install" working
-# TODO: get "pip install ." working
-
-## Features on-deck:
-# TODO: allow user to choose the directory structure
-
 
 def main(args):
 
@@ -60,6 +53,12 @@ def main(args):
 
         # Make new job directory for this Study Area to hold all outputs
         job_dir = utility.make_job_dir(args['root_dir'], args['job_name'])
+
+        ### TMP FOR lower48 same day request!
+        # gran_id = list(study_area.granules_to_download.keys())[0]
+        # sensor, tileID, date = utility.get_sensor_tileID_date(gran_id)
+        # job_dir = utility.make_job_dir(args['root_dir'], f"{tileID}/{date}")
+        ### end tmp code
 
         # If --intersects was used, copy the file into the job directory
         # and update the original args dictionary for future reruns.
