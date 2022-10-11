@@ -12,6 +12,8 @@ from ruamel.yaml import YAML as ruamel_yaml
 from osgeo.gdalconst import GDT_Float32
 from osgeo import gdal, osr
 from scipy.ndimage import binary_dilation
+from dataclasses import dataclass, field
+from typing import Any
 
 from proteus.core import save_as_cog
 
@@ -304,9 +306,14 @@ class HlsThresholds:
         self.lcmask_nir = None
 
 
+@dataclass(frozen=True)
 class RunConfigConstants:
     """
-    Placeholder for constants defined by the default runconfig file
+    Stores the constants defined by the runconfig file(s).
+
+    Values from the User runconfig file take precedence over the
+    values from the default runconfig file, and all fields will be
+    initialized. This object will be immutable after initialization.
 
     Attributes
     ----------
@@ -327,15 +334,203 @@ class RunConfigConstants:
     browse_image_width: int
             Width in pixels of the browse image PNG
     """
-    def __init__(self):
-        self.hls_thresholds = HlsThresholds()
-        self.flag_use_otsu_terrain_masking = None
-        self.min_slope_angle = None
-        self.max_sun_local_inc_angle = None
-        self.mask_adjacent_to_cloud_mode = None
-        self.browse_image_height = None
-        self.browse_image_width = None
- 
+
+    hls_thresholds: Any = field(init=False)  # HlsThresholds() object
+    flag_use_otsu_terrain_masking: bool = field(init=False)
+    min_slope_angle: float = field(init=False)
+    max_sun_local_inc_angle: float = field(init=False)
+    mask_adjacent_to_cloud_mode: bool = field(init=False)
+    browse_image_height: int = field(init=False)
+    browse_image_width:int = field(init=False)
+
+    def __init__(self, default_runconfig_file,
+                       runconfig_schema,
+                       user_runconfig_file=None):
+        """
+        Initializes the RunConfigConstants object with the highest-precedence
+        values in the provided runconfig file(s).
+
+        Values from attributes of `user_runconfig_file` have higher 
+        precendence than values in `default_runconfig_file`. Input
+        file(s) will be validated against the schema. After
+        initialization, all fields in the instance will contain a value.
+
+        Parameters
+        ----------
+        default_runconfig_file : str
+            Path to the default runconfig .yaml file
+        runconfig_schema : str
+            Path to the default runconfig schema .yaml file
+        user_runconfig_file : str, optional
+            Path to the user-provided runconfig .yaml file.
+            If `None`, all attributes will be initialized to the
+            values in `default_runconfig_file`.
+            Defaults to None.
+        """
+
+        # Check for valid files
+        if not os.path.isfile(default_runconfig_file):
+            error_msg = f'ERROR invalid file {default_runconfig_file}'
+            logger.info(error_msg)
+            raise Exception(error_msg)
+        if not os.path.isfile(runconfig_schema):
+            error_msg = f'ERROR invalid file {runconfig_schema}'
+            logger.info(error_msg)
+            raise Exception(error_msg)
+        if user_runconfig_file is not None and \
+            not os.path.isfile(user_runconfig_file):
+            error_msg = f'ERROR invalid file {user_runconfig_file}'
+            logger.info(error_msg)
+            raise Exception(error_msg)
+
+        # Parse schema
+        schema = yamale.make_schema(runconfig_schema, parser='ruamel')
+
+        # Parse the default runconfig
+        parser = ruamel_yaml(typ='safe')
+        with open(default_runconfig_file, 'r') as f:
+            default_runconfig = parser.load(f)
+
+        # Sanity Check - Validate the default runconfig
+        logger.info(f'Validating default runconfig file: {default_runconfig_file}')
+        data = yamale.make_data(default_runconfig_file, parser='ruamel')
+        # yamale.validate(schema, data)
+        
+        # Store the default runconfig settings in this class.
+        # (If there is a user runconfig, we'll update the values afterwards.)
+        with open(default_runconfig_file) as def_yaml:
+            def_cgf = parser.load(def_yaml)
+
+        processing_group = def_cgf['runconfig']['groups']['processing']
+        browse_image_group = def_cgf['runconfig']['groups']['browse_image_group']
+        hls_thresholds_group = def_cgf['runconfig']['groups']['hls_thresholds']
+
+        # Because this dataclass is frozen (immutable), we'll need to 
+        # set the attributes via the superclass.
+        hls_thresholds_tmp = HlsThresholds()
+        # copy HLS thresholds from runconfig dictionary
+        logger.info('Getting Default HLS thresholds:')
+        for key in hls_thresholds_group.keys():
+            logger.info(f'     {key}: {hls_thresholds_group[key]}')
+            hls_thresholds_tmp.__setattr__(key, hls_thresholds_group[key])
+        object.__setattr__(self, 'hls_thresholds', hls_thresholds_tmp)
+
+        logger.info('Getting default runconfig constants:')
+
+        rcfg_constants_dict = {
+            'flag_use_otsu_terrain_masking' : processing_group,
+            'min_slope_angle' : processing_group,
+            'max_sun_local_inc_angle' : processing_group,
+            'mask_adjacent_to_cloud_mode' : processing_group,
+            'browse_image_height' : browse_image_group,
+            'browse_image_width' : browse_image_group
+        }
+
+        for (const_name, const_group) in rcfg_constants_dict.items():
+            if const_name in const_group:                     # key must exist
+                if const_group[const_name] is not None:     # key must have a value
+                    # Update attribute value and log
+                    object.__setattr__(self, const_name, const_group[const_name])
+                    logger.info(f'     Updating {const_name}: {getattr(self, const_name)}')
+            else:
+                logger.info(f'     {const_name} attribute not found in  {const_group} '
+                            f' in file {user_runconfig_file}')
+
+
+        # object.__setattr__(self, 'flag_use_otsu_terrain_masking', 
+        #         processing_group['flag_use_otsu_terrain_masking'])
+        # logger.info(f'     flag_use_otsu_terrain_masking: {self.flag_use_otsu_terrain_masking}')
+
+        # object.__setattr__(self, 'min_slope_angle', 
+        #         processing_group['min_slope_angle'])
+        # logger.info(f'     min_slope_angle: {self.min_slope_angle}')
+
+        # object.__setattr__(self, 'max_sun_local_inc_angle', 
+        #         processing_group['max_sun_local_inc_angle'])
+        # logger.info(f'     max_sun_local_inc_angle: {self.max_sun_local_inc_angle}')
+
+        # object.__setattr__(self, 'mask_adjacent_to_cloud_mode', 
+        #         processing_group['mask_adjacent_to_cloud_mode'])
+        # logger.info(f'     mask_adjacent_to_cloud_mode: {self.mask_adjacent_to_cloud_mode}')
+
+        # object.__setattr__(self, 'browse_image_height', 
+        #         browse_image_group['browse_image_height'])
+        # logger.info(f'     browse_image_height: {self.browse_image_height}')
+
+        # object.__setattr__(self, 'browse_image_width', 
+        #         browse_image_group['browse_image_width'])
+        # logger.info(f'     browse_image_width: {self.browse_image_width}')
+
+        # If there is no user runconfig, initialization is complete
+        if user_runconfig_file is None:
+            return
+
+        # Since there is a user runconfig file, read in the user's values, and
+        # update the defaults values with what the user provided.
+
+        # Validate the user-supplied runconfig
+        if user_runconfig_file is not None:
+            logger.info(f'Validating user runconfig file: {user_runconfig_file}')
+            data = yamale.make_data(user_runconfig_file, parser='ruamel')
+            yamale.validate(schema, data)
+
+        with open(user_runconfig_file) as usr_yaml:
+            usr_cgf = parser.load(usr_yaml)
+
+        processing_group = usr_cgf['runconfig']['groups']['processing']
+        browse_image_group = usr_cgf['runconfig']['groups']['browse_image_group']
+        hls_thresholds_group = usr_cgf['runconfig']['groups']['hls_thresholds']
+
+        logger.info('Updating HLS thresholds:')
+        hls_thresholds_tmp = HlsThresholds()
+        for key in hls_thresholds_group.keys():
+            # If user provided a value for this field, update the 
+            # stored value
+            if key is not None:
+                # Update with the user runconfig value
+                logger.info(f'     Updating {key}: {hls_thresholds_group[key]}')
+                hls_thresholds_tmp.__setattr__(key, hls_thresholds_group[key])
+            else:
+                # use the default runconfig value
+                hls_thresholds_tmp.__setattr__(key, self.hls_thresholds[key])
+        object.__setattr__(self, 'hls_thresholds', hls_thresholds_tmp)
+
+        logger.info('Updating runconfig constants with user inputs:')
+        for (const_name, const_group) in rcfg_constants_dict.items():
+            if const_name in const_group:                     # key must exist
+                if const_group[const_name] is not None:     # key must have a value
+                    # Update attribute value and log
+                    object.__setattr__(self, const_name, const_group[const_name])
+                    logger.info(f'     Updating {const_name}: {getattr(self, const_name)}')
+            else:
+                logger.info(f'     {const_name} attribute not found in  {const_group} '
+                            f' in file {user_runconfig_file}')
+
+        # logger.info('Updating runconfig constants with user inputs:')
+        # if processing_group['flag_use_otsu_terrain_masking'] is not None:
+        #     object.__setattr__(self, 'flag_use_otsu_terrain_masking', 
+        #             processing_group['flag_use_otsu_terrain_masking'])
+        #     logger.info(f'     Updating flag_use_otsu_terrain_masking: {self.flag_use_otsu_terrain_masking}')
+        # if processing_group['min_slope_angle'] is not None:
+        #     object.__setattr__(self, 'min_slope_angle', 
+        #             processing_group['min_slope_angle'])
+        #     logger.info(f'     Updating min_slope_angle: {self.min_slope_angle}')
+        # if processing_group['max_sun_local_inc_angle'] is not None:
+        #     object.__setattr__(self, 'max_sun_local_inc_angle', 
+        #             processing_group['max_sun_local_inc_angle'])
+        #     logger.info(f'     Updating max_sun_local_inc_angle: {self.max_sun_local_inc_angle}')
+        # if processing_group['mask_adjacent_to_cloud_mode'] is not None:
+        #     object.__setattr__(self, 'mask_adjacent_to_cloud_mode', 
+        #             processing_group['mask_adjacent_to_cloud_mode'])
+        #     logger.info(f'     Updating mask_adjacent_to_cloud_mode: {self.mask_adjacent_to_cloud_mode}')
+        # if browse_image_group['browse_image_height'] is not None:
+        #     object.__setattr__(self, 'browse_image_height', 
+        #             browse_image_group['browse_image_height'])
+        #     logger.info(f'     Updating browse_image_height: {self.browse_image_height}')
+        # if browse_image_group['browse_image_width'] is not None:
+        #     object.__setattr__(self, 'browse_image_width', 
+        #             browse_image_group['browse_image_width'])
+        #     logger.info(f'     Updating browse_image_width: {self.browse_image_width}')
 
 
 def get_dswx_hls_cli_parser():
@@ -2485,15 +2680,22 @@ def _deep_update(main_dict, update_dict):
 def parse_runconfig_file(user_runconfig_file = None, args = None):
     """
     Parse run configuration file updating an argument
-    (argparse.Namespace) and an HlsThresholds object
+    (argparse.Namespace) and a RunConfigConstants object.
 
-       Parameters
-       ----------
-       user_runconfig_file: str (optional)
-              Run configuration (runconfig) filename
-       args: argparse.Namespace (optional)
-              Argument object
+    Parse input values for DSWx-HLS from runconfig files 
+    and CLI arguments and return a 
+
+    If user_runconfig_file is None, default values will be
+
+    Parameters
+    ----------
+    user_runconfig_file: str (optional)
+        Run configuration (runconfig) filename
+    args: argparse.Namespace (optional)
+        Argument object
     """
+
+    # Get the paths for the default runconfig .yaml and schema.
     bin_dirname = os.path.dirname(__file__)
     source_dirname = os.path.split(bin_dirname)[0]
     default_runconfig_file = f'{source_dirname}/proteus/defaults/dswx_hls.yaml'
@@ -2503,66 +2705,16 @@ def parse_runconfig_file(user_runconfig_file = None, args = None):
     yaml_schema = f'{source_dirname}/proteus/schemas/dswx_hls.yaml'
     logger.info(f'YAML schema: {yaml_schema}')
 
-    schema = yamale.make_schema(yaml_schema, parser='ruamel')
-
-    # parse default config
-    parser = ruamel_yaml(typ='safe')
-    with open(default_runconfig_file, 'r') as f:
-        default_runconfig = parser.load(f)
-
-    if user_runconfig_file is not None:
-        if not os.path.isfile(user_runconfig_file):
-            error_msg = f'ERROR invalid file {user_runconfig_file}'
-            logger.info(error_msg)
-            raise Exception(error_msg)
-
-        logger.info(f'Input runconfig file: {user_runconfig_file}')
-
-        data = yamale.make_data(user_runconfig_file, parser='ruamel')
-
-        logger.info(f'Validating runconfig file: {user_runconfig_file}')
-        yamale.validate(schema, data)
-
-        # parse user config
-        with open(user_runconfig_file) as f_yaml:
-            user_runconfig = parser.load(f_yaml)
-
-        # copy user suppiled config into default config
-        runconfig = _deep_update(default_runconfig, user_runconfig)
-
-    else:
-        runconfig = default_runconfig
-
-    runconfig_constants = RunConfigConstants()
-    processing_group = runconfig['runconfig']['groups']['processing']
-    browse_image_group = runconfig['runconfig']['groups']['browse_image_group']
-    hls_thresholds_user = runconfig['runconfig']['groups']['hls_thresholds']
-
-    # copy some processing parameters from runconfig dictionary
-    runconfig_constants_dict = runconfig_constants.__dict__
-    for key in processing_group.keys():
-        if key not in runconfig_constants_dict.keys():
-            continue
-        runconfig_constants.__setattr__(key, processing_group[key])
-
-    # copy browse image parameters from runconfig dictionary
-    for key in browse_image_group.keys():
-        if key not in runconfig_constants_dict.keys():
-            continue
-        runconfig_constants.__setattr__(key, browse_image_group[key])
-
-    # copy HLS thresholds from runconfig dictionary
-    if hls_thresholds_user is not None:
-        logger.info('HLS thresholds:')
-        for key in hls_thresholds_user.keys():
-            logger.info(f'     {key}: {hls_thresholds_user[key]}')
-            runconfig_constants.hls_thresholds.__setattr__(key, hls_thresholds_user[key])
+    # Get the highest-precendence constants from the runconfig file(s)
+    runconfig_constants = RunConfigConstants(default_runconfig_file=default_runconfig_file,
+                                            runconfig_schema=yaml_schema, 
+                                            user_runconfig_file=user_runconfig_file)
 
     if args is None:
         return runconfig_constants
 
     # Update args with runconfig_constants attributes
-    for key in runconfig_constants_dict.keys():
+    for key in runconfig_constants.__dict__.keys():
         try:
             user_attr = getattr(args, key)
         except AttributeError:
@@ -2571,6 +2723,15 @@ def parse_runconfig_file(user_runconfig_file = None, args = None):
             continue
         setattr(args, key, getattr(runconfig_constants, key))
  
+    # Select which runconfig file to use for the non-constant attributes
+    parser = ruamel_yaml(typ='safe')
+    if user_runconfig_file is not None:
+        with open(user_runconfig_file) as f_yaml:
+            runconfig = parser.load(f_yaml)
+    else:
+        with open(default_runconfig_file) as f_yaml:
+            runconfig = parser.load(f_yaml)
+
     input_file_path = runconfig['runconfig']['groups']['input_file_group'][
         'input_file_path']
 
@@ -2658,6 +2819,8 @@ def parse_runconfig_file(user_runconfig_file = None, args = None):
         setattr(args, args_name, runconfig_layer_file)
 
     # Browse Image Filename
+    browse_image_group = runconfig['runconfig']['groups']['browse_image_group']
+
     if browse_image_group['save_browse']:
         # Get user's CLI input for the browse image filename
         cli_arg_name = 'output_browse_image'
