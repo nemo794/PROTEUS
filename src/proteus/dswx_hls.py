@@ -426,7 +426,7 @@ class RunConfigConstants:
                 if const_group[const_name] is not None:     # key must have a value
                     # Update attribute value and log
                     object.__setattr__(self, const_name, const_group[const_name])
-                    logger.info(f'     Setting {const_name}: {getattr(self, const_name)}')
+                    logger.info(f'     {const_name}: {getattr(self, const_name)}')
             else:
                 logger.info(f'     {const_name} attribute not found'
                             f' in file {user_runconfig_file}')
@@ -461,19 +461,16 @@ class RunConfigConstants:
         }
 
         logger.info('Updating default HLS thresholds to user runconfig values:')
-        hls_thresholds_tmp = HlsThresholds()
+        hls_thresholds_tmp = self.hls_thresholds
         for key in usr_hls_thresholds_group.keys():
-            # If user provided a value for this field, update the 
-            # stored value
-            if key is not None:
-                # Only update if the user value does not equal the default value.
-                if usr_hls_thresholds_group[key] != getattr(self.hls_thresholds, key):
-                    # Update with the user runconfig value
-                    logger.info(f'     Updating {key}: {usr_hls_thresholds_group[key]}')
-                    hls_thresholds_tmp.__setattr__(key, usr_hls_thresholds_group[key])
-            else:
-                # use the default runconfig value
-                hls_thresholds_tmp.__setattr__(key, self.hls_thresholds[key])
+            # If user provided a value for this field, and if the user value 
+            # does not equal the default value, then update the stored value
+            if key is not None and \
+                (usr_hls_thresholds_group[key] != getattr(self.hls_thresholds, key)):
+
+                logger.info(f'     Updating {key}: {usr_hls_thresholds_group[key]}')
+                hls_thresholds_tmp.__setattr__(key, usr_hls_thresholds_group[key])
+
         object.__setattr__(self, 'hls_thresholds', hls_thresholds_tmp)
 
         logger.info('Updating default runconfig constants to user runconfig values:')
