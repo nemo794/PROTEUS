@@ -341,7 +341,7 @@ class RunConfigConstants:
     max_sun_local_inc_angle: float = field(init=False)
     mask_adjacent_to_cloud_mode: bool = field(init=False)
     browse_image_height: int = field(init=False)
-    browse_image_width:int = field(init=False)
+    browse_image_width: int = field(init=False)
 
     def __init__(self, default_runconfig_file,
                        runconfig_schema,
@@ -390,76 +390,46 @@ class RunConfigConstants:
         parser = ruamel_yaml(typ='safe')
         with open(default_runconfig_file, 'r') as f:
             default_runconfig = parser.load(f)
-
-        # Sanity Check - Validate the default runconfig
-        logger.info(f'Validating default runconfig file: {default_runconfig_file}')
-        data = yamale.make_data(default_runconfig_file, parser='ruamel')
-        # yamale.validate(schema, data)
         
         # Store the default runconfig settings in this class.
         # (If there is a user runconfig, we'll update the values afterwards.)
         with open(default_runconfig_file) as def_yaml:
             def_cgf = parser.load(def_yaml)
 
-        processing_group = def_cgf['runconfig']['groups']['processing']
-        browse_image_group = def_cgf['runconfig']['groups']['browse_image_group']
-        hls_thresholds_group = def_cgf['runconfig']['groups']['hls_thresholds']
+        def_processing_group = def_cgf['runconfig']['groups']['processing']
+        def_browse_image_group = def_cgf['runconfig']['groups']['browse_image_group']
+        def_hls_thresholds_group = def_cgf['runconfig']['groups']['hls_thresholds']
 
         # Because this dataclass is frozen (immutable), we'll need to 
         # set the attributes via the superclass.
         hls_thresholds_tmp = HlsThresholds()
         # copy HLS thresholds from runconfig dictionary
-        logger.info('Getting Default HLS thresholds:')
-        for key in hls_thresholds_group.keys():
-            logger.info(f'     {key}: {hls_thresholds_group[key]}')
-            hls_thresholds_tmp.__setattr__(key, hls_thresholds_group[key])
+        logger.info('Getting Default Runconfig HLS thresholds:')
+        for key in def_hls_thresholds_group.keys():
+            logger.info(f'     {key}: {def_hls_thresholds_group[key]}')
+            hls_thresholds_tmp.__setattr__(key, def_hls_thresholds_group[key])
         object.__setattr__(self, 'hls_thresholds', hls_thresholds_tmp)
 
         logger.info('Getting default runconfig constants:')
 
-        rcfg_constants_dict = {
-            'flag_use_otsu_terrain_masking' : processing_group,
-            'min_slope_angle' : processing_group,
-            'max_sun_local_inc_angle' : processing_group,
-            'mask_adjacent_to_cloud_mode' : processing_group,
-            'browse_image_height' : browse_image_group,
-            'browse_image_width' : browse_image_group
+        def_constants_dict = {
+            'flag_use_otsu_terrain_masking' : def_processing_group,
+            'min_slope_angle' : def_processing_group,
+            'max_sun_local_inc_angle' : def_processing_group,
+            'mask_adjacent_to_cloud_mode' : def_processing_group,
+            'browse_image_height' : def_browse_image_group,
+            'browse_image_width' : def_browse_image_group
         }
 
-        for (const_name, const_group) in rcfg_constants_dict.items():
+        for (const_name, const_group) in def_constants_dict.items():
             if const_name in const_group:                     # key must exist
                 if const_group[const_name] is not None:     # key must have a value
                     # Update attribute value and log
                     object.__setattr__(self, const_name, const_group[const_name])
-                    logger.info(f'     Updating {const_name}: {getattr(self, const_name)}')
+                    logger.info(f'     Setting {const_name}: {getattr(self, const_name)}')
             else:
-                logger.info(f'     {const_name} attribute not found in  {const_group} '
+                logger.info(f'     {const_name} attribute not found'
                             f' in file {user_runconfig_file}')
-
-
-        # object.__setattr__(self, 'flag_use_otsu_terrain_masking', 
-        #         processing_group['flag_use_otsu_terrain_masking'])
-        # logger.info(f'     flag_use_otsu_terrain_masking: {self.flag_use_otsu_terrain_masking}')
-
-        # object.__setattr__(self, 'min_slope_angle', 
-        #         processing_group['min_slope_angle'])
-        # logger.info(f'     min_slope_angle: {self.min_slope_angle}')
-
-        # object.__setattr__(self, 'max_sun_local_inc_angle', 
-        #         processing_group['max_sun_local_inc_angle'])
-        # logger.info(f'     max_sun_local_inc_angle: {self.max_sun_local_inc_angle}')
-
-        # object.__setattr__(self, 'mask_adjacent_to_cloud_mode', 
-        #         processing_group['mask_adjacent_to_cloud_mode'])
-        # logger.info(f'     mask_adjacent_to_cloud_mode: {self.mask_adjacent_to_cloud_mode}')
-
-        # object.__setattr__(self, 'browse_image_height', 
-        #         browse_image_group['browse_image_height'])
-        # logger.info(f'     browse_image_height: {self.browse_image_height}')
-
-        # object.__setattr__(self, 'browse_image_width', 
-        #         browse_image_group['browse_image_width'])
-        # logger.info(f'     browse_image_width: {self.browse_image_width}')
 
         # If there is no user runconfig, initialization is complete
         if user_runconfig_file is None:
@@ -477,60 +447,47 @@ class RunConfigConstants:
         with open(user_runconfig_file) as usr_yaml:
             usr_cgf = parser.load(usr_yaml)
 
-        processing_group = usr_cgf['runconfig']['groups']['processing']
-        browse_image_group = usr_cgf['runconfig']['groups']['browse_image_group']
-        hls_thresholds_group = usr_cgf['runconfig']['groups']['hls_thresholds']
+        usr_processing_group = usr_cgf['runconfig']['groups']['processing']
+        usr_browse_image_group = usr_cgf['runconfig']['groups']['browse_image_group']
+        usr_hls_thresholds_group = usr_cgf['runconfig']['groups']['hls_thresholds']
 
-        logger.info('Updating HLS thresholds:')
+        usr_constants_dict = {
+            'flag_use_otsu_terrain_masking' : usr_processing_group,
+            'min_slope_angle' : usr_processing_group,
+            'max_sun_local_inc_angle' : usr_processing_group,
+            'mask_adjacent_to_cloud_mode' : usr_processing_group,
+            'browse_image_height' : usr_browse_image_group,
+            'browse_image_width' : usr_browse_image_group
+        }
+
+        logger.info('Updating default HLS thresholds to user runconfig values:')
         hls_thresholds_tmp = HlsThresholds()
-        for key in hls_thresholds_group.keys():
+        for key in usr_hls_thresholds_group.keys():
             # If user provided a value for this field, update the 
             # stored value
             if key is not None:
-                # Update with the user runconfig value
-                logger.info(f'     Updating {key}: {hls_thresholds_group[key]}')
-                hls_thresholds_tmp.__setattr__(key, hls_thresholds_group[key])
+                # Only update if the user value does not equal the default value.
+                if usr_hls_thresholds_group[key] != getattr(self.hls_thresholds, key):
+                    # Update with the user runconfig value
+                    logger.info(f'     Updating {key}: {usr_hls_thresholds_group[key]}')
+                    hls_thresholds_tmp.__setattr__(key, usr_hls_thresholds_group[key])
             else:
                 # use the default runconfig value
                 hls_thresholds_tmp.__setattr__(key, self.hls_thresholds[key])
         object.__setattr__(self, 'hls_thresholds', hls_thresholds_tmp)
 
-        logger.info('Updating runconfig constants with user inputs:')
-        for (const_name, const_group) in rcfg_constants_dict.items():
+        logger.info('Updating default runconfig constants to user runconfig values:')
+        for (const_name, const_group) in usr_constants_dict.items():
             if const_name in const_group:                     # key must exist
                 if const_group[const_name] is not None:     # key must have a value
-                    # Update attribute value and log
-                    object.__setattr__(self, const_name, const_group[const_name])
-                    logger.info(f'     Updating {const_name}: {getattr(self, const_name)}')
+                    # Only update if the user's value does not equal the default value.
+                    if const_group[const_name] != getattr(self, const_name):
+                        # Update attribute value and log
+                        object.__setattr__(self, const_name, const_group[const_name])
+                        logger.info(f'     Updating {const_name}: {const_group[const_name]}')
             else:
-                logger.info(f'     {const_name} attribute not found in  {const_group} '
+                logger.info(f'     {const_name} attribute not found'
                             f' in file {user_runconfig_file}')
-
-        # logger.info('Updating runconfig constants with user inputs:')
-        # if processing_group['flag_use_otsu_terrain_masking'] is not None:
-        #     object.__setattr__(self, 'flag_use_otsu_terrain_masking', 
-        #             processing_group['flag_use_otsu_terrain_masking'])
-        #     logger.info(f'     Updating flag_use_otsu_terrain_masking: {self.flag_use_otsu_terrain_masking}')
-        # if processing_group['min_slope_angle'] is not None:
-        #     object.__setattr__(self, 'min_slope_angle', 
-        #             processing_group['min_slope_angle'])
-        #     logger.info(f'     Updating min_slope_angle: {self.min_slope_angle}')
-        # if processing_group['max_sun_local_inc_angle'] is not None:
-        #     object.__setattr__(self, 'max_sun_local_inc_angle', 
-        #             processing_group['max_sun_local_inc_angle'])
-        #     logger.info(f'     Updating max_sun_local_inc_angle: {self.max_sun_local_inc_angle}')
-        # if processing_group['mask_adjacent_to_cloud_mode'] is not None:
-        #     object.__setattr__(self, 'mask_adjacent_to_cloud_mode', 
-        #             processing_group['mask_adjacent_to_cloud_mode'])
-        #     logger.info(f'     Updating mask_adjacent_to_cloud_mode: {self.mask_adjacent_to_cloud_mode}')
-        # if browse_image_group['browse_image_height'] is not None:
-        #     object.__setattr__(self, 'browse_image_height', 
-        #             browse_image_group['browse_image_height'])
-        #     logger.info(f'     Updating browse_image_height: {self.browse_image_height}')
-        # if browse_image_group['browse_image_width'] is not None:
-        #     object.__setattr__(self, 'browse_image_width', 
-        #             browse_image_group['browse_image_width'])
-        #     logger.info(f'     Updating browse_image_width: {self.browse_image_width}')
 
 
 def get_dswx_hls_cli_parser():
@@ -671,18 +628,6 @@ def get_dswx_hls_cli_parser():
                         help='Output browse image file (png)')
 
     # Parameters
-    parser.add_argument('--bheight'
-                        '--browse-image-height',
-                        dest='browse_image_height',
-                        type=int,
-                        help='Height in pixels for browse image PNG')
-
-    parser.add_argument('--bwidth'
-                        '--browse-image-width',
-                        dest='browse_image_width',
-                        type=int,
-                        help='Width in pixels for browse image PNG')
-
     parser.add_argument('--offset-and-scale-inputs',
                         dest='flag_offset_and_scale_inputs',
                         action='store_true',
@@ -702,31 +647,6 @@ def get_dswx_hls_cli_parser():
                         type=str,
                         help='Product ID that will be saved in the output'
                         "product's metadata")
-
-    parser.add_argument('--use-otsu-terrain-masking',
-                        dest='flag_use_otsu_terrain_masking',
-                        action='store_true',
-                        default=None,
-                        help=('Compute and apply terrain masking using Otsu'
-                              ' thresholding'))
-
-    parser.add_argument('--min-slope-angle',
-                        dest='min_slope_angle',
-                        type=float,
-                        help='')
-
-    parser.add_argument('--max-sun-local-inc-angle',
-                        dest='max_sun_local_inc_angle',
-                        type=float,
-                        help='Maximum local-incidence angle')
-
-    parser.add_argument('--mask-adjacent-to-cloud-mode',
-                        dest='mask_adjacent_to_cloud_mode',
-                        type=str,
-                        choices=['mask', 'ignore', 'cover'],
-                        help='Define how areas adjacent to cloud/cloud-shadow'
-                        ' should be handled. Options: "mask", "ignore", and'
-                        ' "cover"')
 
     parser.add_argument('--debug',
                         dest='flag_debug',
@@ -2651,31 +2571,6 @@ def _warp(input_file, geotransform, projection,
 
     return relocated_array
 
-def _deep_update(main_dict, update_dict):
-    """Update input dictionary with a second (update) dictionary
-    https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
-
-       Parameters
-       ----------
-       main_dict: dict
-              Input dictionary
-       update_dict: dict
-              Update dictionary
-
-       Returns
-       -------
-       updated_dict : dict
-              Updated dictionary
-    """
-    for key, val in update_dict.items():
-        if isinstance(val, dict):
-            main_dict[key] = _deep_update(main_dict.get(key, {}), val)
-        else:
-            main_dict[key] = val
-
-    # return updated main_dict
-    return main_dict
-
 
 def parse_runconfig_file(user_runconfig_file = None, args = None):
     """
@@ -2683,16 +2578,33 @@ def parse_runconfig_file(user_runconfig_file = None, args = None):
     (argparse.Namespace) and a RunConfigConstants object.
 
     Parse input values for DSWx-HLS from runconfig files 
-    and CLI arguments and return a 
-
-    If user_runconfig_file is None, default values will be
-
+    and CLI arguments, update the args (if available),
+    and return the runconfig constants.
+    
     Parameters
     ----------
     user_runconfig_file: str (optional)
         Run configuration (runconfig) filename
+        If `user_runconfig_file` is None, default runconfig values
+        be taken from the default DSWx-HLS runconfig file.
+        Defaults to None.
     args: argparse.Namespace (optional)
-        Argument object
+        Mutable Argument object
+        This will be updated with the variable fields from the
+        `user_runconfig_file` if it is available, or otherwise
+        from the default DSWx-HLS runconfig file.
+        If `args` is None, this function will only generate
+        `runconfig_constants` and return that; note that this means
+        that the variable fields of the runconfig files will not
+        be processed.
+        Defaults to None.
+
+    Returns
+    -------
+    runconfig_constants : RunConfigConstants
+        An instance of RunconfigConstants, populated with higher
+        precendence from the `user_runconfig_file` (if available),
+        and otherwise the default DSWx-HLS runconfig file.
     """
 
     # Get the paths for the default runconfig .yaml and schema.
@@ -2788,7 +2700,7 @@ def parse_runconfig_file(user_runconfig_file = None, args = None):
     if product_id is None:
         product_id = 'dswx_hls'
 
-
+    processing_group = runconfig['runconfig']['groups']['processing']
     for i, (layer_name, args_name) in \
             enumerate(layer_names_to_args_dict.items()):
         layer_number = i + 1
@@ -2820,7 +2732,6 @@ def parse_runconfig_file(user_runconfig_file = None, args = None):
 
     # Browse Image Filename
     browse_image_group = runconfig['runconfig']['groups']['browse_image_group']
-
     if browse_image_group['save_browse']:
         # Get user's CLI input for the browse image filename
         cli_arg_name = 'output_browse_image'
@@ -3298,7 +3209,9 @@ def generate_dswx_layers(input_list,
                                      browse_image_width is None)
 
     if flag_read_runconfig_constants:
+        # Get constants from default runconfig .yaml file
         runconfig_constants = parse_runconfig_file()
+
         if hls_thresholds is None:
             hls_thresholds = runconfig_constants.hls_thresholds
         if flag_use_otsu_terrain_masking is None:
