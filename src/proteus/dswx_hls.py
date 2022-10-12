@@ -333,11 +333,11 @@ class RunConfigConstants:
         Height in pixels of the browse image PNG
     browse_image_width: int
         Width in pixels of the browse image PNG
-    runconfig_dict : dict
-        A dict of the final runconfig values to use; it
-        follows the same key structure as `default_runconfig_file`
-        supplied during Class initialization.
     """
+
+    default_runconfig_file: str
+    runconfig_schema: str = None
+    user_runconfig_file: str = None
 
     hls_thresholds: Any = field(init=False)  # HlsThresholds() object
     flag_use_otsu_terrain_masking: bool = field(init=False)
@@ -347,13 +347,9 @@ class RunConfigConstants:
     browse_image_height: int = field(init=False)
     browse_image_width: int = field(init=False)
 
-    # Runconfig files are small, so it's ok to store.
-    # This is a dictionary of the final runconfig values chosen;
-    # it follows the same key structure as the default runconfig file.
-    runconfig_dict: dict = field(init=False)
 
     def __init__(self, default_runconfig_file,
-                       runconfig_schema,
+                       runconfig_schema=None,
                        user_runconfig_file=None):
         """
         Initializes the RunConfigConstants object with the highest-precedence
@@ -377,46 +373,35 @@ class RunConfigConstants:
             Defaults to None.
         """
 
-        # Parse the default runconfig into a dictionary
+        # Validate and store input parameters
+
         if not os.path.isfile(default_runconfig_file):
             error_msg = f'ERROR invalid file {default_runconfig_file}'
             logger.info(error_msg)
             raise Exception(error_msg)
-
-        parser = ruamel_yaml(typ='safe')
-        with open(default_runconfig_file, 'r') as f:
-            runconfig = parser.load(f)
+        else:
+            object.__setattr__(self, 'default_runconfig_file', default_runconfig_file)
         
-        # If a user input file exists, validate it, parse it,
-        # and update the `runconfig` dict with any new values from it.
-        if user_runconfig_file is not None:
-            if not os.path.isfile(user_runconfig_file):
-                error_msg = f'ERROR invalid file {user_runconfig_file}'
-                logger.info(error_msg)
-                raise Exception(error_msg)
+        if user_runconfig_file is not None and \
+            not os.path.isfile(user_runconfig_file):
 
-            logger.info(f'Input runconfig file: {user_runconfig_file}')
+            error_msg = f'ERROR invalid file {user_runconfig_file}'
+            logger.info(error_msg)
+            raise Exception(error_msg)
+        else:
+            object.__setattr__(self, 'user_runconfig_file', user_runconfig_file)
+            
+        if runconfig_schema is not None and \
+            not os.path.isfile(runconfig_schema):
 
-            if not os.path.isfile(runconfig_schema):
-                error_msg = f'ERROR invalid file {runconfig_schema}'
-                logger.info(error_msg)
-                raise Exception(error_msg)
+            error_msg = f'ERROR invalid file {runconfig_schema}'
+            logger.info(error_msg)
+            raise Exception(error_msg)
+        else:
+            object.__setattr__(self, 'runconfig_schema', runconfig_schema)
 
-            # Parse schema
-            schema = yamale.make_schema(runconfig_schema, parser='ruamel')
-
-            # Validate user runconfig file
-            data = yamale.make_data(user_runconfig_file, parser='ruamel')
-            logger.info(f'Validating runconfig file: {user_runconfig_file}')
-            yamale.validate(schema, data)
-
-            # parse user config into a dict
-            with open(user_runconfig_file) as f_yaml:
-                user_runconfig = parser.load(f_yaml)
-
-            # Update the default runcofig with available non-Nonetype values
-            # from the user runconfig
-            runconfig = _deep_update(runconfig, user_runconfig)
+        # Get the final runconfig
+        runconfig = self.get_final_runconfig_dict()
 
         # Populate this instance of RunConfigConstants with the
         # final values in `runconfig`. The default runconfig
@@ -454,7 +439,41 @@ class RunConfigConstants:
             logger.info(f'     {const_name}: {getattr(self, const_name)}')
 
         # Initialization is complete
-        object.__setattr__(self, 'runconfig_dict', runconfig)
+
+
+    def get_final_runconfig_dict(self, quiet=False):
+        """Uses the runconfig file(s) and schema supplied during
+        class initialization to generate a final runconfig dict.
+        """
+        # Parse the default runconfig into a dictionary
+        parser = ruamel_yaml(typ='safe')
+        with open(self.default_runconfig_file, 'r') as f:
+            runconfig = parser.load(f)
+        
+        # If a user input file exists, validate it, parse it,
+        # and update the `runconfig` dict with any new values from it.
+        if self.user_runconfig_file is not None:
+            if not quiet:
+                logger.info(f'Input runconfig file: {self.user_runconfig_file}')
+
+            # Parse schema
+            schema = yamale.make_schema(self.runconfig_schema, parser='ruamel')
+
+            # Validate user runconfig file
+            data = yamale.make_data(self.user_runconfig_file, parser='ruamel')
+            if not quiet:
+                logger.info(f'Validating runconfig file: {self.user_runconfig_file}')
+            yamale.validate(schema, data)
+
+            # parse user config into a dict
+            with open(self.user_runconfig_file) as f_yaml:
+                user_runconfig = parser.load(f_yaml)
+
+            # Update the default runcofig with available non-Nonetype values
+            # from the user runconfig
+            runconfig = _deep_update(runconfig, user_runconfig)
+
+        return runconfig
 
 
 def _deep_update(main_dict, update_dict):
@@ -2634,7 +2653,7 @@ def parse_runconfig_file(user_runconfig_file = None, args = None):
         setattr(args, key, getattr(runconfig_constants, key))
 
     # Get the final runconfig dict
-    runconfig = runconfig_constants.runconfig_dict
+    runconfig = runconfig_constants.get_final_runconfig_dict(quiet=True)
 
     input_file_path = runconfig['runconfig']['groups']['input_file_group'][
         'input_file_path']
