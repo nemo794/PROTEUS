@@ -320,19 +320,23 @@ class RunConfigConstants:
     hls_thresholds : HlsThresholds
         HLS reflectance thresholds for generating DSWx-HLS products
     flag_use_otsu_terrain_masking: bool
-           Flag to indicate whether the terrain masking should be computed
-           with the Otsu threshold method
+        Flag to indicate whether the terrain masking should be computed
+        with the Otsu threshold method
     min_slope_angle: float
-           Minimum slope angle
+        Minimum slope angle
     max_sun_local_inc_angle: float
-           Maximum local-incidence angle
+        Maximum local-incidence angle
     mask_adjacent_to_cloud_mode: str
-           Define how areas adjacent to cloud/cloud-shadow should be handled.
-           Options: "mask", "ignore", and "cover"
+        Define how areas adjacent to cloud/cloud-shadow should be handled.
+        Options: "mask", "ignore", and "cover"
     browse_image_height: int
-            Height in pixels of the browse image PNG
+        Height in pixels of the browse image PNG
     browse_image_width: int
-            Width in pixels of the browse image PNG
+        Width in pixels of the browse image PNG
+    runconfig_dict : dict
+        A dict of the final runconfig values to use; it
+        follows the same key structure as `default_runconfig_file`
+        supplied during Class initialization.
     """
 
     hls_thresholds: Any = field(init=False)  # HlsThresholds() object
@@ -342,6 +346,11 @@ class RunConfigConstants:
     mask_adjacent_to_cloud_mode: bool = field(init=False)
     browse_image_height: int = field(init=False)
     browse_image_width: int = field(init=False)
+
+    # Runconfig files are small, so it's ok to store.
+    # This is a dictionary of the final runconfig values chosen;
+    # it follows the same key structure as the default runconfig file.
+    runconfig_dict: dict = field(init=False)
 
     def __init__(self, default_runconfig_file,
                        runconfig_schema,
@@ -368,123 +377,115 @@ class RunConfigConstants:
             Defaults to None.
         """
 
-        # Check for valid files
+        # Parse the default runconfig into a dictionary
         if not os.path.isfile(default_runconfig_file):
             error_msg = f'ERROR invalid file {default_runconfig_file}'
             logger.info(error_msg)
             raise Exception(error_msg)
-        if not os.path.isfile(runconfig_schema):
-            error_msg = f'ERROR invalid file {runconfig_schema}'
-            logger.info(error_msg)
-            raise Exception(error_msg)
-        if user_runconfig_file is not None and \
-            not os.path.isfile(user_runconfig_file):
-            error_msg = f'ERROR invalid file {user_runconfig_file}'
-            logger.info(error_msg)
-            raise Exception(error_msg)
 
-        # Parse schema
-        schema = yamale.make_schema(runconfig_schema, parser='ruamel')
-
-        # Parse the default runconfig
         parser = ruamel_yaml(typ='safe')
         with open(default_runconfig_file, 'r') as f:
-            default_runconfig = parser.load(f)
+            runconfig = parser.load(f)
         
-        # Store the default runconfig settings in this class.
-        # (If there is a user runconfig, we'll update the values afterwards.)
-        with open(default_runconfig_file) as def_yaml:
-            def_cgf = parser.load(def_yaml)
+        # If a user input file exists, validate it, parse it,
+        # and update the `runconfig` dict with any new values from it.
+        if user_runconfig_file is not None:
+            if not os.path.isfile(user_runconfig_file):
+                error_msg = f'ERROR invalid file {user_runconfig_file}'
+                logger.info(error_msg)
+                raise Exception(error_msg)
 
-        def_processing_group = def_cgf['runconfig']['groups']['processing']
-        def_browse_image_group = def_cgf['runconfig']['groups']['browse_image_group']
-        def_hls_thresholds_group = def_cgf['runconfig']['groups']['hls_thresholds']
+            logger.info(f'Input runconfig file: {user_runconfig_file}')
 
-        # Because this dataclass is frozen (immutable), we'll need to 
+            if not os.path.isfile(runconfig_schema):
+                error_msg = f'ERROR invalid file {runconfig_schema}'
+                logger.info(error_msg)
+                raise Exception(error_msg)
+
+            # Parse schema
+            schema = yamale.make_schema(runconfig_schema, parser='ruamel')
+
+            # Validate user runconfig file
+            data = yamale.make_data(user_runconfig_file, parser='ruamel')
+            logger.info(f'Validating runconfig file: {user_runconfig_file}')
+            yamale.validate(schema, data)
+
+            # parse user config into a dict
+            with open(user_runconfig_file) as f_yaml:
+                user_runconfig = parser.load(f_yaml)
+
+            # Update the default runcofig with available non-Nonetype values
+            # from the user runconfig
+            runconfig = _deep_update(runconfig, user_runconfig)
+
+        # Populate this instance of RunConfigConstants with the
+        # final values in `runconfig`. The default runconfig
+        # /should/ have all fields from the schema (including 
+        # the non-required fields), so there should not be any KeyErrors.
+        processing_group = runconfig['runconfig']['groups']['processing']
+        browse_image_group = runconfig['runconfig']['groups']['browse_image_group']
+        hls_thresholds_group = runconfig['runconfig']['groups']['hls_thresholds']
+
+        # Because this dataclass is frozen (immutable),
         # set the attributes via the superclass.
         hls_thresholds_tmp = HlsThresholds()
         # copy HLS thresholds from runconfig dictionary
-        logger.info('Getting Default Runconfig HLS thresholds:')
-        for key in def_hls_thresholds_group.keys():
-            logger.info(f'     {key}: {def_hls_thresholds_group[key]}')
-            hls_thresholds_tmp.__setattr__(key, def_hls_thresholds_group[key])
+        logger.info('Getting Runconfig HLS thresholds:')
+        for key in hls_thresholds_group.keys():
+            logger.info(f'     {key}: {hls_thresholds_group[key]}')
+            hls_thresholds_tmp.__setattr__(key, hls_thresholds_group[key])
         object.__setattr__(self, 'hls_thresholds', hls_thresholds_tmp)
 
-        logger.info('Getting default runconfig constants:')
+        logger.info('Getting Runconfig constants:')
 
-        def_constants_dict = {
-            'flag_use_otsu_terrain_masking' : def_processing_group,
-            'min_slope_angle' : def_processing_group,
-            'max_sun_local_inc_angle' : def_processing_group,
-            'mask_adjacent_to_cloud_mode' : def_processing_group,
-            'browse_image_height' : def_browse_image_group,
-            'browse_image_width' : def_browse_image_group
+        runconfig_constants_dict = {
+            'flag_use_otsu_terrain_masking' : processing_group,
+            'min_slope_angle' : processing_group,
+            'max_sun_local_inc_angle' : processing_group,
+            'mask_adjacent_to_cloud_mode' : processing_group,
+            'browse_image_height' : browse_image_group,
+            'browse_image_width' : browse_image_group
         }
 
-        for (const_name, const_group) in def_constants_dict.items():
-            if const_name in const_group:                     # key must exist
-                if const_group[const_name] is not None:     # key must have a value
-                    # Update attribute value and log
-                    object.__setattr__(self, const_name, const_group[const_name])
-                    logger.info(f'     {const_name}: {getattr(self, const_name)}')
-            else:
-                logger.info(f'     {const_name} attribute not found'
-                            f' in file {user_runconfig_file}')
+        for (const_name, const_group) in runconfig_constants_dict.items():
+            # Because this dataclass is frozen (immutable), 
+            # set the attributes via the superclass.
+            object.__setattr__(self, const_name, const_group[const_name])
+            logger.info(f'     {const_name}: {getattr(self, const_name)}')
 
-        # If there is no user runconfig, initialization is complete
-        if user_runconfig_file is None:
-            return
+        # Initialization is complete
+        object.__setattr__(self, 'runconfig_dict', runconfig)
 
-        # Since there is a user runconfig file, read in the user's values, and
-        # update the defaults values with what the user provided.
 
-        # Validate the user-supplied runconfig
-        if user_runconfig_file is not None:
-            logger.info(f'Validating user runconfig file: {user_runconfig_file}')
-            data = yamale.make_data(user_runconfig_file, parser='ruamel')
-            yamale.validate(schema, data)
+def _deep_update(main_dict, update_dict):
+    """
+    Update main input dictionary with non-Nonetype values from
+    a second (update) dictionary.
+    
+    Source: https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
 
-        with open(user_runconfig_file) as usr_yaml:
-            usr_cgf = parser.load(usr_yaml)
+    Parameters
+    ----------
+    main_dict: dict
+        Input dictionary
+    update_dict: dict
+        Update dictionary
 
-        usr_processing_group = usr_cgf['runconfig']['groups']['processing']
-        usr_browse_image_group = usr_cgf['runconfig']['groups']['browse_image_group']
-        usr_hls_thresholds_group = usr_cgf['runconfig']['groups']['hls_thresholds']
+    Returns
+    -------
+    updated_dict : dict
+        Updated dictionary. If a key's value in the `update_dict` 
+        is None, the main dictionary's corresponding value will
+        not be updated.
+    """
+    for key, val in update_dict.items():
+        if isinstance(val, dict):
+            main_dict[key] = _deep_update(main_dict.get(key, {}), val)
+        elif val is not None:
+            main_dict[key] = val
 
-        usr_constants_dict = {
-            'flag_use_otsu_terrain_masking' : usr_processing_group,
-            'min_slope_angle' : usr_processing_group,
-            'max_sun_local_inc_angle' : usr_processing_group,
-            'mask_adjacent_to_cloud_mode' : usr_processing_group,
-            'browse_image_height' : usr_browse_image_group,
-            'browse_image_width' : usr_browse_image_group
-        }
-
-        logger.info('Updating default HLS thresholds to user runconfig values:')
-        hls_thresholds_tmp = self.hls_thresholds
-        for key in usr_hls_thresholds_group.keys():
-            # If user provided a value for this field, and if the user value 
-            # does not equal the default value, then update the stored value
-            if key is not None and \
-                (usr_hls_thresholds_group[key] != getattr(self.hls_thresholds, key)):
-
-                logger.info(f'     Updating {key}: {usr_hls_thresholds_group[key]}')
-                hls_thresholds_tmp.__setattr__(key, usr_hls_thresholds_group[key])
-
-        object.__setattr__(self, 'hls_thresholds', hls_thresholds_tmp)
-
-        logger.info('Updating default runconfig constants to user runconfig values:')
-        for (const_name, const_group) in usr_constants_dict.items():
-            if const_name in const_group:                     # key must exist
-                if const_group[const_name] is not None:     # key must have a value
-                    # Only update if the user's value does not equal the default value.
-                    if const_group[const_name] != getattr(self, const_name):
-                        # Update attribute value and log
-                        object.__setattr__(self, const_name, const_group[const_name])
-                        logger.info(f'     Updating {const_name}: {const_group[const_name]}')
-            else:
-                logger.info(f'     {const_name} attribute not found'
-                            f' in file {user_runconfig_file}')
+    # return updated main_dict
+    return main_dict
 
 
 def get_dswx_hls_cli_parser():
@@ -2631,15 +2632,9 @@ def parse_runconfig_file(user_runconfig_file = None, args = None):
         if user_attr is not None:
             continue
         setattr(args, key, getattr(runconfig_constants, key))
- 
-    # Select which runconfig file to use for the non-constant attributes
-    parser = ruamel_yaml(typ='safe')
-    if user_runconfig_file is not None:
-        with open(user_runconfig_file) as f_yaml:
-            runconfig = parser.load(f_yaml)
-    else:
-        with open(default_runconfig_file) as f_yaml:
-            runconfig = parser.load(f_yaml)
+
+    # Get the final runconfig dict
+    runconfig = runconfig_constants.runconfig_dict
 
     input_file_path = runconfig['runconfig']['groups']['input_file_group'][
         'input_file_path']
