@@ -32,28 +32,33 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## Installation
 
-Download the source code and move working directory to clone repository:
+### Download the Source Code
+Download the source code and change working directory to cloned repository:
 
 ```bash
-git clone https://github.com/opera-adt/PROTEUS.git
+git clone https://github.com/nasa/PROTEUS.git
 cd PROTEUS
 ```
 
-Install PROTEUS via conda/setup.py (recommended):
-
+### Standard Installation
+Install dependencies (installation via conda is recommended):
 ```bash
 conda install --file docker/requirements.txt
 conda install -c conda-forge --file docker/requirements.txt.forge
-python setup.py install
 ```
 
-Or via pip:
+Install via setup.py:
 
 ```bash
-pip install .
+python setup.py install
+python setup.py clean
 ```
 
-Or via environment path setup:
+Note: Installation via pip is not currently recommended due to an
+issue with the osgeo and gdal dependency.
+
+
+OR update environment path to run PROTEUS:
 
 ```bash
 export PROTEUS_HOME=$PWD
@@ -61,11 +66,43 @@ export PYTHONPATH=${PYTHONPATH}:${PROTEUS_HOME}/src
 export PATH=${PATH}:${PROTEUS_HOME}/bin
 ```
 
-Run workflow and unit tests:
+Run workflow tests to ensure proper installation:
 
 ```bash
-pytest tests -rpP
+pytest -rpP tests
 ```
+
+Process data sets; use a runconfig file to specify the location
+of the dataset, the output directory, parameters, etc.
+
+```bash
+dswx_hls.py <path to runconfig file>
+```
+
+A default runconfig file can be found: `PROTEUS > src > proteus > defaults > dswx_hls.yaml`.
+This file can be copied and modified for your needs.
+Note: The runconfig must meet this schema: `PROTEUS > src > proteus > schemas > dswx_hls.yaml`.
+
+
+### Alternate Installation: Docker Image
+
+Skip the standard installation process above.
+
+Then, from inside the cloned repository, build the Docker image:
+(This will automatically run the workflow tests.)
+
+```bash
+./build_docker_image.sh
+```
+
+Load the Docker container image onto your computer:
+
+```bash
+docker load -i docker/dockerimg_proteus_cal_val_3.1.tar
+```
+
+See DSWx-HLS Science Algorithm Software (SAS) User Guide for instructions on processing via Docker.
+
 
 ## DSWx-HLS 2.0 Scaling Script
 
@@ -77,31 +114,9 @@ Installation Instructions:
 
 1. Install PROTEUS. The instructions above will install PROTEUS from the original repo. To install the scaling script, install from this fork:
 ```bash
-git clone https://github.com/opera-adt/PROTEUS.git
+git clone TODO
 ```
 
-You can try to install via the conda/setup.py or the pip methods above. If those have issues, try this method:
-
-Install the required packages:
-```bash
-conda install --file docker/requirements.txt
-conda install -c conda-forge --file docker/requirements.txt.forge
-```
-
-Set the environment variables.
-(NOTE: Unless you update your ~/.bash_profile or similar with the full paths, the process of setting the environment variables will need to be repeated for each new shell.)
-```bash
-cd PROTEUS
-export PROTEUS_HOME=$PWD
-export PYTHONPATH=${PYTHONPATH}:${PROTEUS_HOME}/src
-export PATH=${PATH}:${PROTEUS_HOME}/bin
-pytest tests -rpP
-```
-Make sure the tests pass. There is a known issue with the tiledb module being installed for gdal, documented in [this SO post](https://stackoverflow.com/questions/71904252/gdalinfo-error-while-loading-shared-libraries-libtiledb-so-2-2-cannot-open-sh). To fix this, force the use of tiledb to be the version specified in the error message. For example, if the error message says that tiledb 2.2 is required, then force use of tiledb 2.2 with this command:
-
-```bash
-conda install gdal libgdal tiledb=2.2
-```
 
 2. Setup your NASA Earthdata credentials, and store them in a netrc file. (Required to download HLS granules.)
 - A [NASA Earthdata Login Account](https://urs.earthdata.nasa.gov/) is required to download HLS data.
@@ -165,12 +180,12 @@ When processing through DSWx-HLS, then each granule is processed independently a
 
 #### Running from a scaling runconfig .json file using ```--scaling-runconfig```
 
-As an alternative to entering a series of command line arguments, a user can instead use the ```--scaling-runconfig``` option. This uses a human-readble and editable .json file to specify the setup for a run.
+As an alternative to entering a series of command line arguments, a user can instead use the ```--scaling-runconfig``` option. This uses a human-readable and editable .json file to specify the setup for a run.
 
-For this example, we'll use the example runconfig file located in the ```scaling``` directory, but in practise, the file can be located anywhere.
+For this example, we'll use the example runconfig file located in the ```examples``` directory, but in practise, the file can be located anywhere.
 
-```dswx_scaling_script.py --scaling-runconfig ./scaling/scaling_runconfig_example.json```
+```dswx_scaling_script.py --scaling-runconfig ./src/proteus/examples/scaling_runconfig_example.json```
 
 The formats of the values in the runconfig file are identical to the formats of the inputs for command line parsing. However, unlike the command line, there are no default values provided when using the runconfig option; all fields are required to have a value.
 
-Of interest, the format of this input file is identical to the auto-generated ```settings.json``` file that is saved to each new study area directory. So if you want to re-use the same settings as a previous request, or make a subtle change, then you can use that existing ```settings.json``` file as a template, make a copy of it and modify it with your change, and then run the new request.
+Of interest, the format of this input file is identical to the auto-generated ```settings.json``` file that is saved to each new study area directory. To re-use the same (or similar) settings as a previous study area request, simply make a copy of that .json file, and modify it with any changes, and then use the updated .json for the new request.

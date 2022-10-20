@@ -4,7 +4,21 @@ from setuptools import Command
 
 __version__ = version = VERSION = '0.1'
 
-long_description = ''
+
+class CleanCommand(Command):
+    """Custom clean command to tidy up the project root 
+    after running `python setup.py install`."""
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        # Make sure to remove the .egg-info file 
+        os.system('rm -vrf .scratch_dir ./build ./dist ./*.pyc ./*.tgz ./*.egg-info ./src/*.egg-info')
+
+
+long_description = open('README.md').read()
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
@@ -28,21 +42,17 @@ setup(
     name='proteus',
     version=version,
     description='Compute Dynamic Surface Water Extent (DSWx)'
-                ' from optical (HLS) and SAR data',
-    # package_dir is the directory where the egg_base (proteus.egg-info) will be stored.
-    # Ex: If package_dir={'': 'src'}, then proteus.egg-info will be stored in the `src` directory.
-    #     This also means that all python packages must be in the `src` directory;
-    #     the `bin`` directory will no longer be an importable package.
-    package_dir={'proteus': 'src/proteus'},
+                ' from optical (HLS) data',
+    # Gather all packages located under `src`.
+    # (A package is any directory containing an __init__.py file.)
+    package_dir={'': 'src'},
     packages=['proteus',
               'proteus.extern',
               'proteus.scaling'],
-    include_package_data=True,
     package_data=package_data_dict,
     classifiers=['Programming Language :: Python',],
     scripts=['bin/dswx_hls.py',
     	     'bin/dswx_compare.py',
-             'bin/dswx_landcover_mask.py',
              'bin/dswx_scaling_script.py'],
     install_requires=['argparse', 'numpy', 'yamale',
                       'osgeo', 'scipy', 'pytest', 'requests',
@@ -55,5 +65,5 @@ setup(
     long_description=long_description,
     cmdclass={
         'clean': CleanCommand,
-    }
+        }
 )
