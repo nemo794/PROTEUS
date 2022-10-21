@@ -56,7 +56,7 @@ setup(
              'bin/dswx_scaling_script.py'],
     install_requires=['argparse', 'numpy', 'yamale',
                       'osgeo', 'scipy', 'pytest', 'requests',
-                      'pystac-client'],
+                      'pystac-client', 'mgrs', 'pyproj'],
     url='https://github.com/opera-adt/PROTEUS',
     author='Gustavo H. X. Shiroma and Samantha C. Niemoeller',
     author_email=('gustavo.h.shiroma@jpl.nasa.gov'),

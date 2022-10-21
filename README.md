@@ -104,19 +104,15 @@ docker load -i docker/dockerimg_proteus_cal_val_3.1.tar
 See DSWx-HLS Science Algorithm Software (SAS) User Guide for instructions on processing via Docker.
 
 
-## DSWx-HLS 2.0 Scaling Script
+## DSWx-HLS Scaling Script
 
-The DSWx-HLS Scaling Script queries NASA's STAC-CMR database for HLS 2.0 granules, filters the results based on given parameters, downloads the matching HLS granules, and processes them through PROTEUS.
+The DSWx-HLS Scaling Script augments the PROTEUS/DSWx-HLS repository with the ability to query NASA's STAC-CMR database for HLS 2.0 granules, filter the results based on given parameters, download the matching HLS granules, and process them through DSWx-HLS using the default runconfig parameters -- all through the command line (in many cases).
 
 ### Installation
 
 Installation Instructions:
 
-1. Install PROTEUS. The instructions above will install PROTEUS from the original repo. To install the scaling script, install from this fork:
-```bash
-git clone TODO
-```
-
+1. Install PROTEUS, per the instructions above.
 
 2. Setup your NASA Earthdata credentials, and store them in a netrc file. (Required to download HLS granules.)
 - A [NASA Earthdata Login Account](https://urs.earthdata.nasa.gov/) is required to download HLS data.
