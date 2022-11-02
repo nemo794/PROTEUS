@@ -9,7 +9,7 @@ import yamale
 import datetime
 from collections import OrderedDict
 from ruamel.yaml import YAML as ruamel_yaml
-from osgeo.gdalconst import GDT_Float32
+from osgeo.gdalconst import GDT_Float32, GDT_Byte
 from osgeo import gdal, osr
 from scipy.ndimage import binary_dilation
 
@@ -2331,10 +2331,16 @@ def _save_output_rgb_file(red, green, blue, output_file,
         blue = scale_dict[blue_key] * (np.asarray(blue, dtype=np.float32) -
                                      offset_dict[blue_key])
 
+    print("type(invalid_ind): ", type(invalid_ind))
+    print("invalid_ind: ", invalid_ind)
+    print("red: ", red)
+
     if invalid_ind is not None:
         red[invalid_ind] = np.nan
         green[invalid_ind] = np.nan
         blue[invalid_ind] = np.nan
+        print("SAM 67 !!!!!!!!!")
+    print("red: ", red)
 
     # Save red band
     gdal_ds.GetRasterBand(1).WriteArray(red)
@@ -2353,6 +2359,181 @@ def _save_output_rgb_file(red, green, blue, output_file,
     if output_files_list is not None:
         output_files_list.append(output_file)
     logger.info(f'file saved: {output_file}')
+
+
+'''Process for uint8 data [0,255]:
+import cv2
+import numpy as np
+import math
+
+# Read in image; type(img) is numpy.ndarray, img.dtype is unit8
+img = cv2.imread('/Users/niemoell/Desktop/licensed-image.jpg')
+
+>>> img_gamma1 = np.power(img, gamma)
+>>> img_gamma1.dtype
+dtype('float64')
+>>> np.max(img_gamma1)
+268.8284555551147
+>>> np.min(img_gamma1)
+0.0
+>>> img_gamma_1_2 = (np.power(img/255, 0.5)*255).astype(np.uint8)
+>>> f = plt.figure()
+>>> plt.imshow(img_gamma_1_2)
+<matplotlib.image.AxesImage object at 0x7fa618effe50>
+>>> plt.savefig('/Users/niemoell/Desktop/img_gamma_1_2_out.png', bbox_inches='tight', pad_inches=0)
+'''
+
+def _generate_translucent_clouds_array(
+                            wtr_2_layer,
+                            cloud_layer,
+                            invalid_ind=None):
+    """
+    Generate a version of the WTR-2 layer where the
+    pixels marked as `cloud`, etc. in the cloud layer
+    appear to have translucent clouds on top.
+
+    Parameters
+    ----------
+    wtr_2_layer : numpy.ndarray
+        The previously-computed WTR-2 layer
+    cloud_layer : numpy.ndarray
+        The previously-computed cloud layer
+    invalid_ind : numpy.ndarray
+        Array of invalid indices to be set to NaN
+
+    Returns
+    -------
+    transp_clouds : numpy.ndarray
+        The WTR-2 layer, with "translucent" clouds
+        added.
+    """
+    pass
+    # wtr-2 possible values-to-colors
+    # 0: Not Water – an area with valid reflectance data that is not open water (class 1) or partial surface water (class 2).
+    # 1: Open Water – an area that is entirely water and unobstructed to the sensor, including obstructions by vegetation, terrain, and buildings.
+    # 2: Partial Surface Water – an area that is at least 50% and less than 100%  open water. This may be referred to as “subpixel inundation” when referring to a pixel’s area. Examples include inundated sinkholes, floating vegetation, and pixels bisected by coastlines.
+    # 255: Fill value (no data).
+
+
+    # cloud possible values-to-colors
+    # Layer classes: 
+    # 0: Not masked
+    # 1: Cloud shadow
+    # 2: Snow/ice
+    # 3: Cloud shadow and snow/ice
+    # 4: Cloud
+    # 5: Cloud and cloud shadow
+    # 6: Cloud and snow/ice
+    # 7: Cloud, cloud shadow, and snow/ice
+    # 255: Fill value (no data)
+
+
+    # How to combine
+    # get WTR colorbands
+    # "grey-out" the areas with clouds (i.e. lighten, but more of a grey color)
+
+    # Define color tables
+
+
+
+
+def _save_output_false_color_browse(swir1, nir, red, output_file,
+                          offset_dict, scale_dict,
+                          flag_offset_and_scale_inputs,
+                          dswx_metadata_dict,
+                          geotransform, projection,
+                          invalid_ind = None, scratch_dir='.',
+                          gamma=1.0):
+    """
+    Save the a three-band false-color composite GeoTIFF
+
+    Parameters
+    ----------
+    swir1: numpy.ndarray
+        Red reflectance layer
+    nir: numpy.ndarray
+        Green reflectance layer
+    red: numpy.ndarray
+        Blue reflectance layer
+    output_file: str
+        Output filename
+    offset_dict: dict
+        Offset dictionary that stores band offsets
+    scale_dict: dict
+        Scale dictionary that stores bands scaling factor
+    flag_offset_and_scale_inputs: bool
+        Flag to indicate if the band has been already offseted and scaled
+    dswx_metadata_dict: dict
+        Metadata dictionary to be written into the output file
+    geotransform: numpy.ndarray
+        Geotransform describing the output file geolocation
+    projection: str
+        Output file's projection
+    invalid_ind: list
+        List of invalid indices to be set to NaN
+    gamma: float
+        Apply gamma correction of value `gamma` to the
+        output image. Defaults to 1 (no correction).
+    """
+
+    _makedirs(output_file)
+    shape = swir1.shape
+    driver = gdal.GetDriverByName("GTiff")
+    gdal_dtype = GDT_Byte
+    gdal_ds = driver.Create(output_file, shape[1], shape[0], 3, gdal_dtype)
+    gdal_ds.SetGeoTransform(geotransform)
+    gdal_ds.SetProjection(projection)
+
+    # Ensure array values are the DN (int16) values, which will be in range [0,10000]
+    if flag_offset_and_scale_inputs:
+        # Un-scale the values
+        swir1 = (np.asarray(swir1, dtype=np.float32) - offset_dict['swir1']) / scale_dict['swir1']
+        nir = (np.asarray(nir, dtype=np.float32) - offset_dict['nir']) / scale_dict['nir']
+        red = (np.asarray(red, dtype=np.float32) - offset_dict['red']) / scale_dict['red']
+
+
+    def normalize(arr):
+        # Set vmin=0 to ignore the -9999 fill value.
+        # All indices where there is a fill value are noted
+        # in the `invalid_ind` parameter; these indicies will
+        # be masked in a later step.
+        vmin = 0
+        vmax = np.max(arr)
+
+        # normalize the array's values
+        normed_arr = (arr - vmin) / (vmax - vmin)
+
+        return normed_arr
+    
+    # Normalize data to be in range [0,1], 
+    # apply gamma correction,
+    # and stretch back to [0,255] range
+    swir1 = (np.power(normalize(swir1), gamma)*255).astype(np.uint8)
+    nir = (np.power(normalize(nir), gamma)*255).astype(np.uint8)
+    red = (np.power(normalize(red), gamma)*255).astype(np.uint8)
+
+    if invalid_ind is not None:
+        swir1[invalid_ind] = UINT8_FILL_VALUE
+        nir[invalid_ind] = UINT8_FILL_VALUE
+        red[invalid_ind] = UINT8_FILL_VALUE
+
+    # Save swir1 band
+    rb_swir1 = gdal_ds.GetRasterBand(1)
+    rb_swir1.SetNoDataValue(UINT8_FILL_VALUE)  # make fill values transparent
+    rb_swir1.WriteArray(swir1)
+
+    # Save nir band
+    rb_nir = gdal_ds.GetRasterBand(2)
+    rb_nir.SetNoDataValue(UINT8_FILL_VALUE)  # make fill values transparent
+    rb_nir.WriteArray(nir)
+
+    # Save red band
+    rb_red = gdal_ds.GetRasterBand(3)
+    rb_red.SetNoDataValue(UINT8_FILL_VALUE)  # make fill values transparent
+    rb_red.WriteArray(red)
+
+    gdal_ds.FlushCache()
+    gdal_ds = None
 
 
 def get_projection_proj4(projection):
@@ -3349,7 +3530,7 @@ def generate_dswx_layers(input_list,
         invalid_ind = np.where(blue == image_dict['fill_data'])
     else:
         invalid_ind = np.where(np.isnan(blue))
-
+    
     if output_rgb_file:
         _save_output_rgb_file(red, green, blue, output_rgb_file,
                               offset_dict, scale_dict,
@@ -3477,7 +3658,65 @@ def generate_dswx_layers(input_list,
         
         # add the browse image to the output files list
         output_files_list += [output_browse_image]
-        
+    
+    '''Begin test code for alternate browse images'''
+    ############################################
+    #   "False Color Composite" Browse Image   #
+    ############################################
+
+    # Create the False-Color Composite Browse image
+    # TODO - If we use this version, will need to move this code under
+    # the `if output_browse_image: ...` logic above.
+    false_color_tmp_filename = os.path.join(scratch_dir,"dswx_ir_rgb_tmp.tif")
+    _save_output_false_color_browse(swir1, nir, red, false_color_tmp_filename,
+                            offset_dict, scale_dict,
+                            flag_offset_and_scale_inputs,
+                            dswx_metadata_dict,
+                            geotransform, projection,
+                            invalid_ind=invalid_ind,
+                            gamma=0.5)
+    # add the temp file to the list to be removed at the end
+    temp_files_list += [false_color_tmp_filename]
+
+    # Name the IR-RGB browse image and add to the output files list
+    output_dir = os.path.normpath(scratch_dir.replace('scratch_dir','')) + "/output_dir"
+    output_ir_rgb_browse_file = os.path.join(output_dir,"TEST_false_color_browse.png")
+    output_files_list += [output_ir_rgb_browse_file]
+
+    # Convert the geotiff to a PNG to create the browse image
+    geotiff2png(src_geotiff_filename=false_color_tmp_filename,
+            dest_png_filename=output_ir_rgb_browse_file,
+            output_height=browse_image_height,
+            output_width=browse_image_width,
+            logger=logger
+            )
+
+    #########################################
+    #   "Transparent Clouds" Browse Image   #
+    #########################################
+
+    # Create the "transparent" WTR-2 + cloud layer
+
+    # # Build the output layer
+    # wtr2_with_transparent_clouds = _generate_translucent_clouds_array(
+    #                         wtr_2_layer=landcover_shadow_masked_dswx,
+    #                         cloud_layer=cloud,
+    #                         invalid_ind=invalid_ind)
+
+    # # Save to .tif (a temp file)
+
+
+    # # Scale to correct dimensions and convert to png
+    # # Convert the geotiff to a PNG to create the browse image
+    # geotiff2png(src_geotiff_filename=boop_filename,
+    #         dest_png_filename=output_ir_rgb_browse_file,
+    #         output_height=browse_image_height,
+    #         output_width=browse_image_width,
+    #         logger=logger
+    #         )
+
+    '''End test code for alternate browse images'''
+
     if output_cloud_mask:
         save_cloud_mask(cloud, output_cloud_mask, dswx_metadata_dict, geotransform,
                         projection,
