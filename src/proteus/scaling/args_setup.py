@@ -290,7 +290,7 @@ def parse_args():
     parser.add_argument('--l30-v2-bands',
                     dest='l30_v2_bands',
                     type=str,
-                    default='B02,B03,B04,B05,B06,B07,Fmask',
+                    default='B02,B03,B04,B05,B06,B07,Fmask,browse',
                     help=msg
                     )
 
@@ -303,7 +303,7 @@ def parse_args():
     parser.add_argument('--s30-v2-bands',
                     dest='s30_v2_bands',
                     type=str,
-                    default='B02,B03,B04,B8A,B11,B12,Fmask',
+                    default='B02,B03,B04,B8A,B11,B12,Fmask,browse',
                     help=msg
                     )
 

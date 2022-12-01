@@ -143,6 +143,21 @@ CONF_NOT_WATER = 99
 CONF_CLOUD_MASKED_SNOW = 253
 CONF_CLOUD_MASKED = 254
 
+# Classes for the WTR-2 w/ Transluscent clouds browse image
+NOT_WATER_AND_CLOUD = 11
+NOT_WATER_AND_SNOW_ICE = 12
+OPEN_WATER_AND_CLOUD = 13
+OPEN_WATER_AND_SNOW_ICE = 14
+PARTIAL_WATER_AND_CLOUD = 15
+PARTIAL_WATER_AND_SNOW_ICE = 16
+SNOW_ICE = 17
+
+OPEN_WATER_HIGH_CONF_AND_CLOUD = 21
+OPEN_WATER_MOD_CONF_AND_CLOUD = 22
+PARTIAL_WATER_HIGH_CONF_AND_CLOUD = 23
+PARTIAL_WATER_AGGRESSIVE_AND_CLOUD = 24
+
+
 '''
 Internally, DSWx-HLS has 4 water classes derived from
 USGS DSWe:
@@ -1123,6 +1138,164 @@ def _get_interpreted_dswx_ctable(
     return dswx_ctable
 
 
+def _get_wtr2_translucent_clouds_ctable(
+        alpha=0.5,
+        flag_collapse_wtr_classes=FLAG_COLLAPSE_WTR_CLASSES):
+    """
+    Create and return GDAL RGB color table for DSWx-HLS
+    WTR-2 w/ tranluscent clouds browse image.
+
+    Parameters
+    ----------
+    alpha : float
+        Tranparency amount to apply to the `cloud_layer` when
+        overlayed onto `unmasked_interpreted_water_layer`
+    flag_collapse_wtr_classes : bool
+        Flag that indicates if interpreted layer contains
+        collapsed classes following the standard DSWx-HLS product
+        water classes
+
+    Returns
+    -------
+    wtr2_clouds_ctable : GDAL ColorTable object
+        GDAL color table for WTR-2 w/ tranluscent clouds browse image
+    """
+
+    # if not flag_collapse_wtr_classes:
+    #     raise ValueError("Not implemented for uncollapsed WTR classes")
+
+    # Get original color table for the surface water interpreted layer.
+    wtr2_clouds_ctable = _get_interpreted_dswx_ctable(
+            flag_collapse_wtr_classes=flag_collapse_wtr_classes)
+
+    # Not Water with Cloud/cloud-shadow - light gray
+    cloud_color = (160, 160, 160)
+    # wtr2_clouds_ctable.SetColorEntry(NOT_WATER_AND_CLOUD, cloud_color)
+
+    if flag_collapse_wtr_classes:
+        # Open Water with Cloud/cloud-shadow - blue w/ light grey
+        # wtr2_clouds_ctable.SetColorEntry(OPEN_WATER_AND_CLOUD, (140, 152, 158))
+        rgb_vals = get_transparency_rgb_vals(cloud_color, wtr2_clouds_ctable.GetColorEntry(WTR_COLLAPSED_OPEN_WATER), alpha)
+        wtr2_clouds_ctable.SetColorEntry(OPEN_WATER_AND_CLOUD, rgb_vals)
+
+        rgb_vals = get_transparency_rgb_vals(cloud_color, wtr2_clouds_ctable.GetColorEntry(WTR_COLLAPSED_PARTIAL_SURFACE_WATER), alpha)
+        wtr2_clouds_ctable.SetColorEntry(PARTIAL_WATER_AND_CLOUD, rgb_vals)
+
+        # S. Chan Special Colors
+        # open_water_blue_color = (76, 76, 245)  # Charlie darker blue
+        open_water_blue_color = (0, 0, 255)  # pure blue
+        # open_water_blue_color = (10,38,136)  # mike dark blue
+        partial_water_blue_color = (180, 213, 244)
+        # partial_water_blue_color = (205, 223, 245)
+
+        # set new colors for WTR_COLLAPSED_OPEN_WATER and WTR_COLLAPSED_PARTIAL_SURFACE_WATER
+        wtr2_clouds_ctable.SetColorEntry(WTR_COLLAPSED_OPEN_WATER, open_water_blue_color)
+        wtr2_clouds_ctable.SetColorEntry(WTR_COLLAPSED_PARTIAL_SURFACE_WATER, partial_water_blue_color)
+
+        # Add Translucent clouds
+        rgb_vals = get_transparency_rgb_vals(cloud_color,  wtr2_clouds_ctable.GetColorEntry(WTR_NOT_WATER), alpha)
+        print(f'$$$ RGB values for WTR_NOT_WATER = clouds: {rgb_vals}')
+        wtr2_clouds_ctable.SetColorEntry(NOT_WATER_AND_CLOUD, rgb_vals)
+
+        rgb_vals = get_transparency_rgb_vals(cloud_color, wtr2_clouds_ctable.GetColorEntry(WTR_COLLAPSED_OPEN_WATER), alpha)
+        print(f'$$$ RGB values for WTR_COLLAPSED_OPEN_WATER = clouds: {rgb_vals}')
+        wtr2_clouds_ctable.SetColorEntry(OPEN_WATER_AND_CLOUD, rgb_vals)
+
+        rgb_vals = get_transparency_rgb_vals(cloud_color, wtr2_clouds_ctable.GetColorEntry(WTR_COLLAPSED_PARTIAL_SURFACE_WATER), alpha)
+        print(f'$$$ RGB values for WTR_COLLAPSED_PARTIAL_SURFACE_WATER = clouds: {rgb_vals}')
+        wtr2_clouds_ctable.SetColorEntry(PARTIAL_WATER_AND_CLOUD, rgb_vals)
+
+        # Add translucent snow
+        # alpha = min(alpha + 0.2, 1.0)
+        # Not Water with Snow/Ice
+        # snow_color = (0,255,242)  # cyan
+        # snow_color = (153, 51, 255)  # purple
+        # snow_color = (192, 147, 187)  # Pastel Purple (lavender grey)
+        # snow_color = (177, 179, 214)  # purple-blue-grey
+        # snow_color = (178, 224, 221)  # seafoam
+        # snow_color = (77,30,91)  # burgundy-purple
+        # snow_color = (208,188,176)  # dirty reddish-white
+        # snow_color = (67,90,171)  # mike color
+        # snow_color = (2,171,231)  # mike dark blue, blended with aqua
+        # alpha = 0.5
+        # rgb_vals = get_transparency_rgb_vals(snow_color, wtr2_clouds_ctable.GetColorEntry(WTR_NOT_WATER), alpha)
+        # wtr2_clouds_ctable.SetColorEntry(NOT_WATER_AND_SNOW_ICE, rgb_vals)
+
+        # # Open Water with snow/ice
+        # rgb_vals = get_transparency_rgb_vals(snow_color, wtr2_clouds_ctable.GetColorEntry(WTR_COLLAPSED_OPEN_WATER), alpha)
+        # wtr2_clouds_ctable.SetColorEntry(OPEN_WATER_AND_SNOW_ICE, rgb_vals)
+
+        # # Partial Surface Water with snow/ice
+        # rgb_vals = get_transparency_rgb_vals(snow_color, wtr2_clouds_ctable.GetColorEntry(WTR_COLLAPSED_PARTIAL_SURFACE_WATER), alpha)
+        # wtr2_clouds_ctable.SetColorEntry(PARTIAL_WATER_AND_SNOW_ICE, rgb_vals)
+
+    else:  # four water classes
+        # Not Water with Cloud/cloud-shadow - light gray
+        # cloud_color = (160, 160, 160)
+        # wtr2_clouds_ctable.SetColorEntry(NOT_WATER_AND_CLOUD, cloud_color)
+
+        rgb_vals = get_transparency_rgb_vals(cloud_color,  wtr2_clouds_ctable.GetColorEntry(WTR_NOT_WATER), alpha)
+        print(f'$$$ RGB values for WTR_NOT_WATER = clouds: {rgb_vals}')
+        wtr2_clouds_ctable.SetColorEntry(NOT_WATER_AND_CLOUD, rgb_vals)
+
+        # Open Water with Cloud/cloud-shadow
+        rgb_vals = get_transparency_rgb_vals(cloud_color, wtr2_clouds_ctable.GetColorEntry(WTR_UNCOLLAPSED_HIGH_CONF_WATER), alpha)
+        print(f'$$$ RGB values for OPEN_WATER_HIGH_CONF_AND_CLOUD = clouds: {rgb_vals}')
+        wtr2_clouds_ctable.SetColorEntry(OPEN_WATER_HIGH_CONF_AND_CLOUD, rgb_vals)
+
+        rgb_vals = get_transparency_rgb_vals(cloud_color, wtr2_clouds_ctable.GetColorEntry(WTR_UNCOLLAPSED_MODERATE_CONF_WATER), alpha)
+        print(f'$$$ RGB values for OPEN_WATER_MOD_CONF_AND_CLOUD = clouds: {rgb_vals}')
+        wtr2_clouds_ctable.SetColorEntry(OPEN_WATER_MOD_CONF_AND_CLOUD, rgb_vals)
+
+        # Partial Surface Water with cloud/cloud shadow
+        rgb_vals = get_transparency_rgb_vals(cloud_color, wtr2_clouds_ctable.GetColorEntry(WTR_UNCOLLAPSED_POTENTIAL_WETLAND), alpha)
+        print(f'$$$ RGB values for PARTIAL_WATER_HIGH_CONF_AND_CLOUD = clouds: {rgb_vals}')
+        wtr2_clouds_ctable.SetColorEntry(PARTIAL_WATER_HIGH_CONF_AND_CLOUD, rgb_vals)
+
+        rgb_vals = get_transparency_rgb_vals(cloud_color, wtr2_clouds_ctable.GetColorEntry(WTR_UNCOLLAPSED_LOW_CONF_WATER), alpha)
+        print(f'$$$ RGB values for PARTIAL_WATER_AGGRESSIVE_AND_CLOUD = clouds: {rgb_vals}')
+        wtr2_clouds_ctable.SetColorEntry(PARTIAL_WATER_AGGRESSIVE_AND_CLOUD, rgb_vals)
+
+
+    # Make opaque snow
+    wtr2_clouds_ctable.SetColorEntry(SNOW_ICE, cloud_color)
+
+    return wtr2_clouds_ctable
+
+
+def get_transparency_rgb_vals(top_rgb, bottom_rgb, alpha):
+    '''
+    Compute the RGB values to be displayed if the top layer
+    has the given alpha (transparency) value over the
+    bottom layer.
+    
+    Parameters
+    ----------
+    top_rgb : tuple of int
+        RGB values for the top layer, e.g. (0,0,255) for pure blue
+    bottom_rgb : tuple of int
+        RGB values for the bottom layer, e.g. (0,255,0) for pure green
+    alpha : float
+        A value in range [0, 1] that represents the
+        transparency to be applied.
+        Example: if alpha is 0.7, then for the combined layers
+        the final pixel value consists of 70% of the top pixel
+        value and 30% of the bottom pixel value.
+
+    Returns
+    -------
+    output_rgb : tuple of int
+        RGB values for the combined top and bottom layers
+        with the given `alpha` transparency applied.
+    '''
+    if alpha < 0 or alpha > 1:
+        raise ValueError("alpha must be in range [0, 1].")
+
+    new_rgb = [int((alpha * a) + ((1 - alpha) * b)) for a, b in zip(top_rgb, bottom_rgb)]
+
+    return tuple(new_rgb)
+
+
 def _get_cloud_mask_ctable():
     """Create and return GDAL RGB color table for DSWx-HLS cloud/cloud-shadow mask.
 
@@ -2017,6 +2190,128 @@ def save_dswx_product(wtr, output_file, dswx_metadata_dict, geotransform,
     logger.info(f'file saved: {output_file}')
 
 
+def save_dswx_product_TMP(wtr, output_file, dswx_metadata_dict, geotransform,
+                      projection, scratch_dir='.', output_files_list = None,
+                      description = None,
+                      flag_collapse_wtr_classes = FLAG_COLLAPSE_WTR_CLASSES,
+                      **dswx_processed_bands):
+    """Save DSWx-HLS product
+
+       Parameters
+       ----------
+       wtr: numpy.ndarray
+              Water classification layer WTR
+       output_file: str
+              Output filename
+       dswx_metadata_dict: dict
+              Metadata dictionary to be written into the DSWx-HLS product
+       geotransform: numpy.ndarray
+              Geotransform describing the DSWx-HLS product geolocation
+       projection: str
+              DSWx-HLS product's projection
+       scratch_dir: str (optional)
+              Directory for temporary files
+       output_files_list: list (optional)
+              Mutable list of output files
+       description: str (optional)
+              Band description
+       flag_collapse_wtr_classes: bool
+              Collapse interpreted layer water classes following standard
+              DSWx-HLS product water classes
+       **dswx_processed_bands: dict
+              Remaining bands to be included into the DSWx-HLS product
+    """
+    _makedirs(output_file)
+    shape = wtr.shape
+    driver = gdal.GetDriverByName("GTiff")
+
+    dswx_processed_bands['wtr'] = wtr
+
+    # translate dswx_processed_bands_keys to band_description_dict keys
+    # example: wtr_1 to WTR-1
+    dswx_processed_bands_keys = list(dswx_processed_bands.keys())
+    dswx_processed_band_names_list = []
+    for dswx_processed_bands_key in dswx_processed_bands_keys:
+        dswx_processed_band_names_list.append(
+            dswx_processed_bands_key.upper().replace('_', '-'))
+
+    # check input arrays different than None
+    n_valid_bands = 0
+    band_description_dict_keys = list(band_description_dict.keys())
+    for i, band_name in enumerate(dswx_processed_band_names_list):
+        if band_name not in band_description_dict_keys:
+            continue
+        if dswx_processed_bands[dswx_processed_bands_keys[i]] is None:
+            continue
+        n_valid_bands += 1
+
+    if n_valid_bands == 1:
+        # save interpreted layer (single band)
+        nbands = 1
+    else:
+        # save DSWx product
+        nbands = len(band_description_dict.keys())
+
+    gdal_ds = driver.Create(output_file, shape[1], shape[0], nbands, gdal.GDT_Byte)
+    gdal_ds.SetMetadata(dswx_metadata_dict)
+    gdal_ds.SetGeoTransform(geotransform)
+    gdal_ds.SetProjection(projection)
+
+    for band_index, (band_name, description_from_dict) in enumerate(
+            band_description_dict.items()):
+
+        # check if band is in the list of processed bands
+        if band_name in dswx_processed_band_names_list:
+
+            # index using processed key from band name (e.g., WTR-1 to wtr_1)
+            band_array = dswx_processed_bands[
+                band_name.replace('-', '_').lower()]
+        else:
+            logger.warning(f'layer not found "{band_name}".')
+            band_array = None
+
+        # if band is not in the list of processed bands or it's None
+        if band_array is None:
+            band_array = np.zeros_like(wtr)
+
+        gdal_band = gdal_ds.GetRasterBand(band_index + 1)
+
+        if band_name in collapsable_layers_list and flag_collapse_wtr_classes:
+            band_array = _collapse_wtr_classes(band_array)
+
+        gdal_band.WriteArray(band_array)
+        gdal_band.SetNoDataValue(UINT8_FILL_VALUE)
+        if n_valid_bands == 1:
+            # set color table and color interpretation
+            dswx_ctable = _get_interpreted_dswx_ctable(flag_collapse_wtr_classes)
+            
+            # update partial surface water to be baby blue
+            dswx_ctable.SetColorEntry(WTR_COLLAPSED_PARTIAL_SURFACE_WATER,
+                                    (180, 213, 244))
+
+            gdal_band.SetRasterColorTable(dswx_ctable)
+            gdal_band.SetRasterColorInterpretation(
+                gdal.GCI_PaletteIndex)
+        if description is not None:
+            gdal_band.SetDescription(description)
+        else:
+            gdal_band.SetDescription(description_from_dict)
+
+        gdal_band.FlushCache()
+        gdal_band = None
+        if n_valid_bands == 1:
+            break
+
+    gdal_ds.FlushCache()
+    gdal_ds = None
+
+    save_as_cog(output_file, scratch_dir, logger)
+
+    if output_files_list is not None:
+        output_files_list.append(output_file)
+    logger.info(f'file saved: {output_file}')
+
+
 def geotiff2png(src_geotiff_filename,
                 dest_png_filename,
                 output_height=None,
@@ -2331,16 +2626,10 @@ def _save_output_rgb_file(red, green, blue, output_file,
         blue = scale_dict[blue_key] * (np.asarray(blue, dtype=np.float32) -
                                      offset_dict[blue_key])
 
-    print("type(invalid_ind): ", type(invalid_ind))
-    print("invalid_ind: ", invalid_ind)
-    print("red: ", red)
-
     if invalid_ind is not None:
         red[invalid_ind] = np.nan
         green[invalid_ind] = np.nan
         blue[invalid_ind] = np.nan
-        print("SAM 67 !!!!!!!!!")
-    print("red: ", red)
 
     # Save red band
     gdal_ds.GetRasterBand(1).WriteArray(red)
@@ -2359,6 +2648,101 @@ def _save_output_rgb_file(red, green, blue, output_file,
     if output_files_list is not None:
         output_files_list.append(output_file)
     logger.info(f'file saved: {output_file}')
+
+
+def _compute_wtr2_with_translucent_clouds_array(
+        unmasked_interpreted_water_layer,
+        cloud_layer,
+        flag_collapse_wtr_classes=FLAG_COLLAPSE_WTR_CLASSES):
+    """
+    Generate a version of the WTR-2 layer where the
+    pixels marked as `cloud`, etc. in the cloud layer
+    appear to have translucent clouds on top.
+
+    Parameters
+    ----------
+    unmasked_interpreted_water_layer : numpy.ndarray
+        Cloud-unmasked interpreted water layer
+        (i.e. the DSWx-HLS WTR-2 layer)
+    cloud_layer : numpy.ndarray
+        DSWx-HLS CLOUD layer
+    flag_collapse_wtr_classes : bool
+        Collapse interpreted layer water classes following standard
+        DSWx-HLS product water classes
+    
+    Returns
+    -------
+    wtr2_clouds_layer : numpy.ndarray
+        Interpreted water layer with "translucent" clouds
+
+    Notes
+    -----
+    CLOUD layer classifications (as of Nov. 2022)
+    0: Not masked
+    1: Cloud shadow
+    2: Snow/ice
+    3: Cloud shadow and snow/ice
+    4: Cloud
+    5: Cloud and cloud shadow
+    6: Cloud and snow/ice
+    7: Cloud, cloud shadow, and snow/ice
+    255: Fill value (no data)
+
+    For determining pixel coloration, cloud has precedence over
+    all other classes. Only color a pixel as snow if it's not 
+    cloud/cloud-shadow/adjacent masked. (e.g. a pixel with a
+    value of 6 in the CLOUD layer would be colored as cloud.)
+    """
+
+    wtr2_clouds_layer = unmasked_interpreted_water_layer.copy()
+
+    if flag_collapse_wtr_classes:
+        wtr2_clouds_layer = _collapse_wtr_classes(wtr2_clouds_layer)
+
+    cloud_idx = ((cloud_layer == 1) | 
+                (cloud_layer == 4) |
+                (cloud_layer == 5) |
+                (cloud_layer == 3) |
+                (cloud_layer == 6) |
+                (cloud_layer == 7))
+
+    snow_idx = (cloud_layer == 2)
+    wtr2_clouds_layer[snow_idx] = SNOW_ICE
+
+    ind = ((wtr2_clouds_layer == WTR_NOT_WATER) & cloud_idx)
+    wtr2_clouds_layer[ind] = NOT_WATER_AND_CLOUD
+
+    ind = ((wtr2_clouds_layer == WTR_NOT_WATER) & snow_idx)
+    wtr2_clouds_layer[ind] = NOT_WATER_AND_SNOW_ICE
+
+    if flag_collapse_wtr_classes:
+        ind = ((wtr2_clouds_layer == WTR_COLLAPSED_OPEN_WATER) & cloud_idx)
+        wtr2_clouds_layer[ind] = OPEN_WATER_AND_CLOUD
+
+        ind = ((wtr2_clouds_layer == WTR_COLLAPSED_PARTIAL_SURFACE_WATER) & cloud_idx)
+        wtr2_clouds_layer[ind] = PARTIAL_WATER_AND_CLOUD
+
+        # ind = ((wtr2_clouds_layer == WTR_COLLAPSED_OPEN_WATER) & snow_idx)
+        # wtr2_clouds_layer[ind] = OPEN_WATER_AND_SNOW_ICE
+
+        # ind = (wtr2_clouds_layer == WTR_COLLAPSED_PARTIAL_SURFACE_WATER) & snow_idx
+        # wtr2_clouds_layer[ind] = PARTIAL_WATER_AND_SNOW_ICE
+
+    else:
+        # keep all 4 water classes
+        ind = ((wtr2_clouds_layer == WTR_UNCOLLAPSED_HIGH_CONF_WATER) & cloud_idx)
+        wtr2_clouds_layer[ind] = OPEN_WATER_HIGH_CONF_AND_CLOUD
+
+        ind = ((wtr2_clouds_layer == WTR_UNCOLLAPSED_MODERATE_CONF_WATER) & cloud_idx)
+        wtr2_clouds_layer[ind] = OPEN_WATER_MOD_CONF_AND_CLOUD
+
+        ind = ((wtr2_clouds_layer == WTR_UNCOLLAPSED_POTENTIAL_WETLAND) & cloud_idx)
+        wtr2_clouds_layer[ind] = PARTIAL_WATER_HIGH_CONF_AND_CLOUD
+
+        ind = ((wtr2_clouds_layer == WTR_UNCOLLAPSED_LOW_CONF_WATER) & cloud_idx)
+        wtr2_clouds_layer[ind] = PARTIAL_WATER_AGGRESSIVE_AND_CLOUD
+        
+    return wtr2_clouds_layer
 
 
 '''Process for uint8 data [0,255]:
@@ -2382,60 +2766,6 @@ dtype('float64')
 <matplotlib.image.AxesImage object at 0x7fa618effe50>
 >>> plt.savefig('/Users/niemoell/Desktop/img_gamma_1_2_out.png', bbox_inches='tight', pad_inches=0)
 '''
-
-def _generate_translucent_clouds_array(
-                            wtr_2_layer,
-                            cloud_layer,
-                            invalid_ind=None):
-    """
-    Generate a version of the WTR-2 layer where the
-    pixels marked as `cloud`, etc. in the cloud layer
-    appear to have translucent clouds on top.
-
-    Parameters
-    ----------
-    wtr_2_layer : numpy.ndarray
-        The previously-computed WTR-2 layer
-    cloud_layer : numpy.ndarray
-        The previously-computed cloud layer
-    invalid_ind : numpy.ndarray
-        Array of invalid indices to be set to NaN
-
-    Returns
-    -------
-    transp_clouds : numpy.ndarray
-        The WTR-2 layer, with "translucent" clouds
-        added.
-    """
-    pass
-    # wtr-2 possible values-to-colors
-    # 0: Not Water – an area with valid reflectance data that is not open water (class 1) or partial surface water (class 2).
-    # 1: Open Water – an area that is entirely water and unobstructed to the sensor, including obstructions by vegetation, terrain, and buildings.
-    # 2: Partial Surface Water – an area that is at least 50% and less than 100%  open water. This may be referred to as “subpixel inundation” when referring to a pixel’s area. Examples include inundated sinkholes, floating vegetation, and pixels bisected by coastlines.
-    # 255: Fill value (no data).
-
-
-    # cloud possible values-to-colors
-    # Layer classes: 
-    # 0: Not masked
-    # 1: Cloud shadow
-    # 2: Snow/ice
-    # 3: Cloud shadow and snow/ice
-    # 4: Cloud
-    # 5: Cloud and cloud shadow
-    # 6: Cloud and snow/ice
-    # 7: Cloud, cloud shadow, and snow/ice
-    # 255: Fill value (no data)
-
-
-    # How to combine
-    # get WTR colorbands
-    # "grey-out" the areas with clouds (i.e. lighten, but more of a grey color)
-
-    # Define color tables
-
-
-
 
 def _save_output_false_color_browse(swir1, nir, red, output_file,
                           offset_dict, scale_dict,
@@ -2492,13 +2822,36 @@ def _save_output_false_color_browse(swir1, nir, red, output_file,
         red = (np.asarray(red, dtype=np.float32) - offset_dict['red']) / scale_dict['red']
 
 
+    # get vmax and vmin for all layers
+    # remove the -9999 fill value
+    arr_tmp = swir1[swir1 >= 0]
+    vmin1, vmax1 = calc_vmin_vmax(arr_tmp, middle_percentile=98.0)
+    arr_tmp = nir[nir >= 0]
+    vmin2, vmax2 = calc_vmin_vmax(arr_tmp, middle_percentile=98.0)
+    arr_tmp = red[red >= 0]
+    vmin3, vmax3 = calc_vmin_vmax(arr_tmp, middle_percentile=98.0)
+    vmin = min(vmin1, vmin2, vmin3)
+    vmax = max(vmax1, vmax2, vmax3)
+
+    arr_tmp = np.concatenate((swir1[swir1 >= 0], nir[nir >= 0], red[red >= 0]), axis=None)
+    vmin, vmax = calc_vmin_vmax(arr_tmp, middle_percentile=98.0)
+
     def normalize(arr):
         # Set vmin=0 to ignore the -9999 fill value.
         # All indices where there is a fill value are noted
         # in the `invalid_ind` parameter; these indicies will
         # be masked in a later step.
-        vmin = 0
-        vmax = np.max(arr)
+        # vmin = 0
+        # vmax = np.max(arr)
+
+        # # remove the -9999 fill value
+        # arr_tmp = arr[arr >= 0]
+
+        # Ignore bottom and top 2% of the values (the outliers)
+        # vmin, vmax = calc_vmin_vmax(arr_tmp, middle_percentile=98.0)
+
+        print("np.max(arr): ", np.max(arr))
+        print(f'vmin: {vmin}, vmax: {vmax}')
 
         # normalize the array's values
         normed_arr = (arr - vmin) / (vmax - vmin)
@@ -2507,10 +2860,10 @@ def _save_output_false_color_browse(swir1, nir, red, output_file,
     
     # Normalize data to be in range [0,1], 
     # apply gamma correction,
-    # and stretch back to [0,255] range
-    swir1 = (np.power(normalize(swir1), gamma)*255).astype(np.uint8)
-    nir = (np.power(normalize(nir), gamma)*255).astype(np.uint8)
-    red = (np.power(normalize(red), gamma)*255).astype(np.uint8)
+    # and stretch back to [0,254] range (255 is the no data value)
+    swir1 = (np.power(normalize(swir1), gamma)*254).astype(np.uint8)
+    nir = (np.power(normalize(nir), gamma)*254).astype(np.uint8)
+    red = (np.power(normalize(red), gamma)*254).astype(np.uint8)
 
     if invalid_ind is not None:
         swir1[invalid_ind] = UINT8_FILL_VALUE
@@ -2534,6 +2887,44 @@ def _save_output_false_color_browse(swir1, nir, red, output_file,
 
     gdal_ds.FlushCache()
     gdal_ds = None
+
+
+def calc_vmin_vmax(data_in, middle_percentile=100.0):
+    '''
+    Calculate the values of vmin and vmax for the 
+    input array using the given middle percentile.
+
+    For example, if `middle_percentile` is 95.0, then this will
+    return the value of the 2.5th quantile and the 97.5th quantile.
+
+    Parameters
+    ----------
+    data_in : array_like
+        Input array
+    middle_percentile : numeric
+        Defines the middle percentile range of the `data_in`. 
+        Must be in the range [0, 100].
+        Defaults to 100.0.
+
+    Returns
+    -------
+    vmin, vmax : numeric
+        The lower and upper values (respectively) of the middle 
+        percentile.
+
+    '''
+    # Verify that the input percentile is in range [0.0, 100.0].
+    if middle_percentile < 0.0 or middle_percentile > 100.0:
+        raise TypeError(
+            f'The percentile provided is {middle_percentile} but must be '
+            f'in the range [0, 100].')
+
+    fraction = 0.5*(1.0 - middle_percentile/100.0)
+
+    # Get the value of the e.g. 2.5th quantile and the 97.5th quantile
+    vmin, vmax = np.quantile(data_in, [fraction, 1-fraction])
+
+    return vmin, vmax
 
 
 def get_projection_proj4(projection):
@@ -3591,14 +3982,48 @@ def generate_dswx_layers(input_list,
         hls_thresholds)
 
     if output_shadow_masked_dswx is not None:
+        name_of_two_color_blue_green = output_shadow_masked_dswx.replace('WTR-2', 'WTR-2_two_color_blue_green')
         save_dswx_product(landcover_shadow_masked_dswx,
-                          output_shadow_masked_dswx,
+                          name_of_two_color_blue_green,
                           dswx_metadata_dict,
                           geotransform,
                           projection,
                           description=band_description_dict['WTR-2'],
                           scratch_dir=scratch_dir,
                           output_files_list=build_vrt_list)
+
+        name_of_two_color_two_blues = output_shadow_masked_dswx.replace('WTR-2', 'WTR-2_two_color_two_blues')
+        save_dswx_product_TMP(landcover_shadow_masked_dswx,
+                          name_of_two_color_two_blues,
+                          dswx_metadata_dict,
+                          geotransform,
+                          projection,
+                          description=band_description_dict['WTR-2'],
+                          scratch_dir=scratch_dir,
+                          output_files_list=build_vrt_list)
+
+        name_of_four_color = output_shadow_masked_dswx.replace('WTR-2', 'WTR-2_four_color')
+        save_dswx_product(landcover_shadow_masked_dswx,
+                          name_of_four_color,
+                          dswx_metadata_dict,
+                          geotransform,
+                          projection,
+                          description=band_description_dict['WTR-2'],
+                          scratch_dir=scratch_dir,
+                          flag_collapse_wtr_classes=False,
+                          output_files_list=build_vrt_list)
+
+        # # TODO - remove
+        # # Scale to correct dimensions and convert to png
+        # # Convert the geotiff to a PNG to create the browse image
+        # tmp_out = output_shadow_masked_dswx.replace(".tif", '.png')
+        # geotiff2png(src_geotiff_filename=output_shadow_masked_dswx,
+        #         dest_png_filename=tmp_out,
+        #         output_height=browse_image_height,
+        #         output_width=browse_image_width,
+        #         logger=logger
+        #         )
+        # print("np.unique(landcover_shadow_masked_dswx): ", np.unique(landcover_shadow_masked_dswx))
 
     cloud, masked_dswx_band = _compute_mask_and_filter_interpreted_layer(
         landcover_shadow_masked_dswx, qa,
@@ -3619,97 +4044,217 @@ def generate_dswx_layers(input_list,
                           scratch_dir=scratch_dir,
                           output_files_list=build_vrt_list)
 
-    # Output the WTR layer as the browse image
+    # # Output the WTR layer as the browse image
+    # # Note: The browse image will be always be saved as a separate png file;
+    # # it will not included in the combined `output_file`.
+    # if output_browse_image:
+
+    #     # If the `output_interpreted_band` was generated,
+    #     # convert that to the browse image
+    #     if output_interpreted_band:
+    #         src_geotiff_filename = output_interpreted_band
+    #     else:
+    #         # If the `output_interpreted_band` geotiff was not generated,
+    #         # we'll need to make it as a temporary file, and then convert
+    #         # that to the browse image.
+
+    #         # Create the source image as a geotiff
+    #         # Reason: gdal.Create() cannot currently create .png files, so we
+    #         # must start from a GeoTiff, etc.
+    #         # Source: https://gis.stackexchange.com/questions/132298/gdal-c-api-how-to-create-png-or-jpeg-from-scratch
+    #         src_geotiff_filename = os.path.join(scratch_dir,"dswx_tmp.tif")
+    #         save_dswx_product(masked_dswx_band,
+    #                         src_geotiff_filename,
+    #                         dswx_metadata_dict,
+    #                         geotransform,
+    #                         projection,
+    #                         scratch_dir=scratch_dir)
+
+    #         # add the temp file to the list to be removed at the end
+    #         temp_files_list += [src_geotiff_filename]
+
+    #     # Convert the geotiff to a PNG to create the browse image
+    #     geotiff2png(src_geotiff_filename=src_geotiff_filename,
+    #             dest_png_filename=output_browse_image,
+    #             output_height=browse_image_height,
+    #             output_width=browse_image_width,
+    #             logger=logger
+    #             )
+        
+    #     # add the browse image to the output files list
+    #     output_files_list += [output_browse_image]
+    
+    # Output the WTR-2 w/ Translucent clouds layer as the browse image
     # Note: The browse image will be always be saved as a separate png file;
     # it will not included in the combined `output_file`.
     if output_browse_image:
 
-        # If the `output_interpreted_band` was generated,
-        # convert that to the browse image
-        if output_interpreted_band:
-            src_geotiff_filename = output_interpreted_band
-        else:
-            # If the `output_interpreted_band` geotiff was not generated,
-            # we'll need to make it as a temporary file, and then convert
-            # that to the browse image.
+        ### TWO CLASS BROWSE
+        output_browse_image_two_class = output_browse_image.replace('.png', '_two_class.png')
 
-            # Create the source image as a geotiff
-            # Reason: gdal.Create() cannot currently create .png files, so we
-            # must start from a GeoTiff, etc.
-            # Source: https://gis.stackexchange.com/questions/132298/gdal-c-api-how-to-create-png-or-jpeg-from-scratch
-            src_geotiff_filename = os.path.join(scratch_dir,"dswx_tmp.tif")
-            save_dswx_product(masked_dswx_band,
-                            src_geotiff_filename,
-                            dswx_metadata_dict,
-                            geotransform,
-                            projection,
-                            scratch_dir=scratch_dir)
+        # Build the output layer
+        wtr2_with_translucent_clouds = _compute_wtr2_with_translucent_clouds_array(
+                    unmasked_interpreted_water_layer=landcover_shadow_masked_dswx,  # WTR-2
+                    cloud_layer=cloud,
+                    flag_collapse_wtr_classes=FLAG_COLLAPSE_WTR_CLASSES)
 
-            # add the temp file to the list to be removed at the end
-            temp_files_list += [src_geotiff_filename]
+        # Form color table
+        wtr2_with_translucent_clouds_ctable = _get_wtr2_translucent_clouds_ctable(
+            alpha=0.35,
+            flag_collapse_wtr_classes=FLAG_COLLAPSE_WTR_CLASSES)
 
-        # Convert the geotiff to a PNG to create the browse image
-        geotiff2png(src_geotiff_filename=src_geotiff_filename,
-                dest_png_filename=output_browse_image,
+        # Save to .tif (a temp file)
+        # (gdal cannot save directly to png, so create an intermediary .tif file)
+        # import random
+        # import string
+        # tmp_filename = ''.join(random.choices(string.ascii_letters, k=15)) + '.tif'
+
+        tmp_filename = "dswx_wtr2_trans_clouds_2class_tmp.tif"
+        wtr2_with_trans_clouds_tmp_filename = os.path.join(scratch_dir, tmp_filename)
+        # add the temp file to the list to be removed at the end
+        temp_files_list += [wtr2_with_trans_clouds_tmp_filename]
+
+        _save_array(input_array=wtr2_with_translucent_clouds,
+                    output_file=wtr2_with_trans_clouds_tmp_filename,
+                    dswx_metadata_dict=dswx_metadata_dict,
+                    geotransform=geotransform,
+                    projection=projection,
+                    scratch_dir=scratch_dir,
+                    output_dtype=gdal.GDT_Byte,  # unsigned int 8
+                    ctable=wtr2_with_translucent_clouds_ctable,
+                    no_data_value=UINT8_FILL_VALUE)
+
+        # # copy .tif file to special directory
+        # import shutil
+        # target = os.path.join('/home/niemoell/dev/hls_scaling/CA_coast_UTM11/for_tiling', tmp_filename)
+        # shutil.copy(wtr2_with_trans_clouds_tmp_filename, target)
+
+        # Convert the geotiff to a resized PNG to create the browse image
+        geotiff2png(src_geotiff_filename=wtr2_with_trans_clouds_tmp_filename,
+                dest_png_filename=output_browse_image_two_class,
                 output_height=browse_image_height,
                 output_width=browse_image_width,
                 logger=logger
                 )
-        
-        # add the browse image to the output files list
-        output_files_list += [output_browse_image]
-    
-    '''Begin test code for alternate browse images'''
-    ############################################
-    #   "False Color Composite" Browse Image   #
-    ############################################
 
-    # Create the False-Color Composite Browse image
+        # add the browse image to the output files list
+        output_files_list += [output_browse_image_two_class]
+
+        ### FOUR CLASS BROWSE
+        output_browse_image_four_class = output_browse_image.replace('.png', '_four_class.png')
+
+        # Build the output layer
+        wtr2_with_translucent_clouds = _compute_wtr2_with_translucent_clouds_array(
+                    unmasked_interpreted_water_layer=landcover_shadow_masked_dswx,  # WTR-2
+                    cloud_layer=cloud,
+                    flag_collapse_wtr_classes=False)
+
+        # Form color table
+        wtr2_with_translucent_clouds_ctable = _get_wtr2_translucent_clouds_ctable(
+            alpha=0.35,
+            flag_collapse_wtr_classes=False)
+
+        # Save to .tif (a temp file)
+        # (gdal cannot save directly to png, so create an intermediary .tif file)
+        wtr2_with_trans_clouds_tmp_filename = os.path.join(scratch_dir,"dswx_wtr2_trans_clouds_4class_tmp.tif")
+        # add the temp file to the list to be removed at the end
+        temp_files_list += [wtr2_with_trans_clouds_tmp_filename]
+
+        _save_array(input_array=wtr2_with_translucent_clouds,
+                    output_file=wtr2_with_trans_clouds_tmp_filename,
+                    dswx_metadata_dict=dswx_metadata_dict,
+                    geotransform=geotransform,
+                    projection=projection,
+                    scratch_dir=scratch_dir,
+                    output_dtype=gdal.GDT_Byte,  # unsigned int 8
+                    ctable=wtr2_with_translucent_clouds_ctable,
+                    no_data_value=UINT8_FILL_VALUE)
+
+        # Convert the geotiff to a resized PNG to create the browse image
+        geotiff2png(src_geotiff_filename=wtr2_with_trans_clouds_tmp_filename,
+                dest_png_filename=output_browse_image_four_class,
+                output_height=browse_image_height,
+                output_width=browse_image_width,
+                logger=logger
+                )
+
+        # add the browse image to the output files list
+        output_files_list += [output_browse_image_four_class]
+
+
+
+
+
+    '''Begin test code for alternate browse images'''
     # TODO - If we use this version, will need to move this code under
     # the `if output_browse_image: ...` logic above.
-    false_color_tmp_filename = os.path.join(scratch_dir,"dswx_ir_rgb_tmp.tif")
-    _save_output_false_color_browse(swir1, nir, red, false_color_tmp_filename,
-                            offset_dict, scale_dict,
-                            flag_offset_and_scale_inputs,
-                            dswx_metadata_dict,
-                            geotransform, projection,
-                            invalid_ind=invalid_ind,
-                            gamma=0.5)
-    # add the temp file to the list to be removed at the end
-    temp_files_list += [false_color_tmp_filename]
+    # ############################################
+    # #   "False Color Composite" Browse Image   #
+    # ############################################
 
-    # Name the IR-RGB browse image and add to the output files list
-    output_dir = os.path.normpath(scratch_dir.replace('scratch_dir','')) + "/output_dir"
-    output_ir_rgb_browse_file = os.path.join(output_dir,"TEST_false_color_browse.png")
-    output_files_list += [output_ir_rgb_browse_file]
+    # # Create the False-Color Composite Browse image
+    # false_color_tmp_filename = os.path.join(scratch_dir,"dswx_ir_rgb_tmp.tif")
+    # _save_output_false_color_browse(swir1, nir, red, false_color_tmp_filename,
+    #                         offset_dict, scale_dict,
+    #                         flag_offset_and_scale_inputs,
+    #                         dswx_metadata_dict,
+    #                         geotransform, projection,
+    #                         invalid_ind=invalid_ind,
+    #                         gamma=0.5)
+    # # add the temp file to the list to be removed at the end
+    # temp_files_list += [false_color_tmp_filename]
 
-    # Convert the geotiff to a PNG to create the browse image
-    geotiff2png(src_geotiff_filename=false_color_tmp_filename,
-            dest_png_filename=output_ir_rgb_browse_file,
-            output_height=browse_image_height,
-            output_width=browse_image_width,
-            logger=logger
-            )
+    # # Name the IR-RGB browse image and add to the output files list
+    # output_dir = os.path.normpath(scratch_dir.replace('scratch_dir','')) + "/output_dir"
+    # output_ir_rgb_browse_file = os.path.join(output_dir,"TEST_false_color_browse.png")
+    # output_files_list += [output_ir_rgb_browse_file]
 
-    #########################################
-    #   "Transparent Clouds" Browse Image   #
-    #########################################
+    # # Convert the geotiff to a PNG to create the browse image
+    # geotiff2png(src_geotiff_filename=false_color_tmp_filename,
+    #         dest_png_filename=output_ir_rgb_browse_file,
+    #         output_height=browse_image_height,
+    #         output_width=browse_image_width,
+    #         logger=logger
+    #         )
 
-    # Create the "transparent" WTR-2 + cloud layer
+    # #########################################
+    # #   "Transparent Clouds" Browse Image   #
+    # #########################################
 
     # # Build the output layer
-    # wtr2_with_transparent_clouds = _generate_translucent_clouds_array(
-    #                         wtr_2_layer=landcover_shadow_masked_dswx,
-    #                         cloud_layer=cloud,
-    #                         invalid_ind=invalid_ind)
+    # wtr2_with_translucent_clouds = _compute_wtr2_with_translucent_clouds_array(
+    #             unmasked_interpreted_water_layer=landcover_shadow_masked_dswx_copy,  # WTR-2
+    #             cloud_layer=cloud)
+
+    # # Form color table
+    # wtr2_with_translucent_clouds_ctable = _get_wtr2_translucent_clouds_ctable(
+    #     flag_collapse_wtr_classes=FLAG_COLLAPSE_WTR_CLASSES)
 
     # # Save to .tif (a temp file)
+    # wtr2_with_trans_clouds_tmp_filename = os.path.join(scratch_dir,"dswx_wtr2_trans_clouds_tmp.tif")
 
+    # _save_array(input_array=wtr2_with_translucent_clouds,
+    #             output_file=wtr2_with_trans_clouds_tmp_filename,
+    #             dswx_metadata_dict=dswx_metadata_dict,
+    #             geotransform=geotransform,
+    #             projection=projection,
+    #             scratch_dir=scratch_dir,
+    #             output_dtype=gdal.GDT_Byte,  # unsigned int 8
+    #             ctable=wtr2_with_translucent_clouds_ctable,
+    #             no_data_value=UINT8_FILL_VALUE)
+
+    # # add the temp file to the list to be removed at the end
+    # temp_files_list += [wtr2_with_trans_clouds_tmp_filename]
+
+    # # Name the WTR-2 Translucent browse image and add to the output files list
+    # output_dir = os.path.normpath(scratch_dir.replace('scratch_dir','')) + "/output_dir"
+    # output_wtr2_translucent_clouds_browse_file = os.path.join(output_dir,"TEST_wtr2_translucent_clouds_browse.png")
+    # output_files_list += [output_wtr2_translucent_clouds_browse_file]
 
     # # Scale to correct dimensions and convert to png
     # # Convert the geotiff to a PNG to create the browse image
-    # geotiff2png(src_geotiff_filename=boop_filename,
-    #         dest_png_filename=output_ir_rgb_browse_file,
+    # geotiff2png(src_geotiff_filename=wtr2_with_trans_clouds_tmp_filename,
+    #         dest_png_filename=output_wtr2_translucent_clouds_browse_file,
     #         output_height=browse_image_height,
     #         output_width=browse_image_width,
     #         logger=logger
