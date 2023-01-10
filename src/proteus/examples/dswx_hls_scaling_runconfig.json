@@ -15,6 +15,7 @@
     "dem_file": "/home/shiroma/dat/nisar-dem-copernicus/EPSG4326.vrt",
     "landcover_file": "/home/shiroma/dat/copernicus_landcover/PROBAV_LC100_global_v3.0.1_2019-nrt_Discrete-Classification-map_EPSG-4326.tif",
     "worldcover_file": "/mnt/aurora-r0/jungkyo/data/landcover.vrt",
+    "shoreline_shape_file": "/home/shiroma/dat/shoreline_shapefile/GSHHS_f_L1.shp",
     "l30_v2_bands": "B02,B03,B04,B05,B06,B07,Fmask",
     "s30_v2_bands": "B02,B03,B04,B8A,B11,B12,Fmask",
     "stac_url_lpcloud": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/",

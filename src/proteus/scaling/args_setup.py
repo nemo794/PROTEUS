@@ -282,6 +282,20 @@ def parse_args():
                         )
 
     msg = '''
+    Worldwide shoreline shape file. This shoreline file is used for all tiles processed.
+    Warning: in the future, if a world-wide shoreline file is no longer available
+    and an individual shoreline file must be fetched for each tile, then the
+    workflow for populating each granule's runconfig file will need to be updated.
+    See: download_and_process.py > create_runconfig_yaml()
+    '''
+    parser.add_argument('--shoreline-shape-file',
+                        dest='shoreline_shape_file',
+                        type=str,
+                        default='/home/shiroma/dat/shoreline_shapefile/GSHHS_f_L1.shp',
+                        help=msg
+                        )
+
+    msg = '''
     Bands to download for L30 (Landsat) HLS 2.0 files.
     Bands must be separated by commas and have no spaces.
     For PROTEUS, the following L30 bands are required: 
