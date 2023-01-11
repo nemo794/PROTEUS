@@ -266,8 +266,8 @@ def create_runconfig_yaml(granule_dir_path, granule_id, list_of_urls, args):
     runconfig['runconfig']['groups']['dynamic_ancillary_file_group']['worldcover_file'] = \
                 os.path.join(args['worldcover_file'])
 
-    runconfig['runconfig']['groups']['dynamic_ancillary_file_group']['shoreline_shape_file'] = \
-                os.path.join(args['shoreline_shape_file'])
+    runconfig['runconfig']['groups']['dynamic_ancillary_file_group']['shoreline_shapefile'] = \
+                os.path.join(args['shoreline_shapefile'])
 
     runconfig['runconfig']['groups']['product_path_group']['scratch_path'] = \
                 os.path.join(granule_dir_path, 'scratch_dir')

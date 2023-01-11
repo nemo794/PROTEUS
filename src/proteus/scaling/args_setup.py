@@ -288,8 +288,8 @@ def parse_args():
     workflow for populating each granule's runconfig file will need to be updated.
     See: download_and_process.py > create_runconfig_yaml()
     '''
-    parser.add_argument('--shoreline-shape-file',
-                        dest='shoreline_shape_file',
+    parser.add_argument('--shoreline-shapefile',
+                        dest='shoreline_shapefile',
                         type=str,
                         default='/home/shiroma/dat/shoreline_shapefile/GSHHS_f_L1.shp',
                         help=msg
