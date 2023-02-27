@@ -87,8 +87,12 @@ class StudyAreaQuery(object):
                 )
         # Use the intersects input for reading the geojson file
         else:
-            with open(self.intersects, 'r') as f:
-                roi = json.load(f)
+            if isinstance(self.intersects, str):
+                roi = self.intersects
+            else:
+                with open(self.intersects, 'r') as f:
+                    roi = json.load(f)
+            print(roi)
             search = catalog.search(
                 collections=self.collections,
                 max_items=max_items,
@@ -97,6 +101,7 @@ class StudyAreaQuery(object):
                 method='POST'
                 )
 
+        print("MATCHED: ", search.matched())
         for attempt in range(1,4):
             try:
                 item_collection = search.get_all_items()

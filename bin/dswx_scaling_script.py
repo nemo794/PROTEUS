@@ -29,21 +29,20 @@ def main(args):
 
         ## Create an object to hold the desired granules to download.
         study_area = study_area_granules.StudyAreaQuery(
-                            collections = prepped_args['collections'], \
-                            stac_url_lpcloud = prepped_args['stac_url_lpcloud'], \
-                            bounding_box = prepped_args['bounding_box'], \
-                            intersects = prepped_args['intersects'], \
-                            granule_ids = prepped_args['granule_ids'], \
-                            date_range = prepped_args['date_range'], \
-                            tile_id = prepped_args['tile_id'], \
-                            months = prepped_args['months'], \
-                            spatial_coverage_min = prepped_args['spatial_coverage_min'], \
-                            cloud_cover_max = prepped_args['cloud_cover_max'], \
-                            same_day = prepped_args['same_day'], \
-                            verbose = prepped_args['verbose'], \
-                            l30_v2_bands = prepped_args['l30_v2_bands'], \
+                            collections = prepped_args['collections'],
+                            stac_url_lpcloud = prepped_args['stac_url_lpcloud'],
+                            bounding_box = prepped_args['bounding_box'],
+                            intersects = prepped_args['intersects'],
+                            granule_ids = prepped_args['granule_ids'],
+                            date_range = prepped_args['date_range'],
+                            tile_id = prepped_args['tile_id'],
+                            months = prepped_args['months'],
+                            spatial_coverage_min = prepped_args['spatial_coverage_min'],
+                            cloud_cover_max = prepped_args['cloud_cover_max'],
+                            same_day = prepped_args['same_day'],
+                            verbose = prepped_args['verbose'],
+                            l30_v2_bands = prepped_args['l30_v2_bands'],
                             s30_v2_bands = prepped_args['s30_v2_bands']
-
                             )
 
         ## Filter the query results

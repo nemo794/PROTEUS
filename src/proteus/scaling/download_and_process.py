@@ -233,15 +233,16 @@ def process_granule(granule_id, runconfig_path, log_path, args):
     p = subprocess.run(['dswx_hls.py', runconfig_path, '--log-file', log_path], \
                         capture_output=True, text=True
                         )
-                        
-    # If process resulted in an error, then do something
-    if p.stderr:
-        warnings.warn("Warnings/Errors were generated from dswx_hls.py while processing granule ID %s. To display these errors to console, re-process the granule via this scaling script by using the --rerun AND --verbose flags." % granule_id)
-        if args['verbose']:
-            print(p.stderr)
 
-    elif args['verbose']:
-        print('Processing in dswx_hls.py of granule ID %s complete.' % granule_id)
+    msg = f'Processing of granule ID {granule_id} complete. Check log for Errors? %s'
+    if p.stderr:
+        print(msg % 'True')
+
+        if args['verbose']:
+            warnings.warn("Warnings/Errors were generated from dswx_hls.py while processing granule ID %s. To display these errors to console, re-process the granule via this scaling script by using the --rerun AND --verbose flags." % granule_id)
+            print(p.stderr)
+    else:
+        print(msg % 'False')
 
     return (p.stdout, p.stderr)
 
@@ -265,6 +266,9 @@ def create_runconfig_yaml(granule_dir_path, granule_id, list_of_urls, args):
 
     runconfig['runconfig']['groups']['dynamic_ancillary_file_group']['worldcover_file'] = \
                 os.path.join(args['worldcover_file'])
+
+    runconfig['runconfig']['groups']['dynamic_ancillary_file_group']['shoreline_shapefile'] = \
+                os.path.join(args['shoreline_shapefile'])
 
     runconfig['runconfig']['groups']['product_path_group']['scratch_path'] = \
                 os.path.join(granule_dir_path, 'scratch_dir')
@@ -318,7 +322,11 @@ def build_product_id_str(granule_dir_path, granule_id, list_of_urls):
     example_hls_filename = os.path.basename(list_of_urls[0])
     downloaded_hls_filename = os.path.join(granule_dir_path, 'input_dir', example_hls_filename)
     f = gdal.Open(downloaded_hls_filename)
-    metadata = f.GetMetadata()
+    try:
+        metadata = f.GetMetadata()
+    except AttributeError as e:
+        raise AttributeError('HLS File does not contain metadata: '
+                            f'{downloaded_hls_filename}') from e        
     # Close the file
     del f
 
