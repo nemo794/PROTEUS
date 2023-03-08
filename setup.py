@@ -93,8 +93,6 @@ setup(
                       'osgeo', 'scipy', 'pytest', 'requests',
                       'pystac-client', 'mgrs', 'pyproj'],
     url='https://github.com/opera-adt/PROTEUS',
-    author='Gustavo H. X. Shiroma and Samantha C. Niemoeller',
-    author_email=('gustavo.h.shiroma@jpl.nasa.gov'),
     license='Copyright by the California Institute of Technology.'
     ' ALL RIGHTS RESERVED.',
     long_description=long_description,
